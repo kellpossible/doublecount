@@ -1,0 +1,16 @@
+[package]
+name = "doublecount"
+version = "0.1.0"
+authors = ["Luke Frisken <l.frisken@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4"
+rust_decimal = "1.3.0"
+nanoid = "0.3.0"
+thiserror = "1.0"
+
+[dependencies.commodity]
+git = "https://github.com/kellpossible/commodity"
