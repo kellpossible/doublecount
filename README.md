@@ -1,3 +1,3 @@
 # Doublecount
 
-A double entry accounting system/library.
+A double entry accounting system/library for Rust.
