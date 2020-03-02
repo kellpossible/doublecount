@@ -1,9 +1,9 @@
 extern crate chrono;
 extern crate rust_decimal;
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-support")]
 extern crate serde;
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-support")]
 extern crate serde_json;
 
 extern crate thiserror;
@@ -31,7 +31,6 @@ pub enum ExchangeRateSource {
     Internet(String),
 }
 
-// TODO: make serde a feature flag
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[derive(Debug, Clone)]
 pub struct ExchangeRate {
@@ -112,7 +111,7 @@ mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde-support")]
     #[test]
     fn test_deserialize() {
         use serde_json;

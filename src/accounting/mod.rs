@@ -277,10 +277,10 @@ impl Transaction {
     ///
     /// # Example
     /// ```
-    /// # use coster::accounting::Transaction;
+    /// # use doublecount::accounting::Transaction;
     /// # use std::rc::Rc;
-    /// use coster::accounting::Account;
-    /// use coster::currency::{Currency, Commodity};
+    /// use doublecount::accounting::Account;
+    /// use commodity::{Currency, Commodity};
     /// use chrono::Local;
     ///
     /// let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
@@ -560,7 +560,7 @@ mod tests {
         sum_account_states, Account, AccountState, AccountStatus, Action, EditAccountStatus,
         NaiveDate, Program, ProgramState, Transaction, TransactionElement,
     };
-    use crate::currency::{Commodity, Currency, CurrencyCode};
+    use commodity::{Commodity, Currency, CurrencyCode};
     use std::rc::Rc;
     use std::str::FromStr;
 
