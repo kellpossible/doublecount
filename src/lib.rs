@@ -4,8 +4,8 @@
 //! 
 //! + `serde-support`
 //!   + Optional
-//!   + Enable support for serialization/de-serialization via `serde`
-//!   + Enable support for json serialization/de-serialization via `serde_json`
+//!   + Enables support for serialization/de-serialization via `serde`
+//!   + Enables support for json serialization/de-serialization via `serde_json`
 
 extern crate chrono;
 extern crate nanoid;
