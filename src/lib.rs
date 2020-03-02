@@ -21,6 +21,5 @@ extern crate serde;
 extern crate serde_json;
 
 pub mod accounting;
-pub mod exchange_rate;
 
 #[doc(no_inline)] pub use accounting::*;

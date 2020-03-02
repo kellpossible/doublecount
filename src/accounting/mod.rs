@@ -1,7 +1,7 @@
 //! The accounting system.
 
 use commodity::{Commodity, Currency, CurrencyCode, CommodityError};
-use crate::exchange_rate::{ExchangeRate, ExchangeRateError};
+use commodity::exchange_rate::{ExchangeRate, ExchangeRateError};
 use std::collections::HashMap;
 
 use chrono::NaiveDate;
@@ -286,6 +286,7 @@ impl Transaction {
     /// use doublecount::accounting::Account;
     /// use commodity::{Currency, Commodity};
     /// use chrono::Local;
+    /// use std::str::FromStr;
     ///
     /// let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
     ///
