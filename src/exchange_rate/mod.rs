@@ -1,21 +1,11 @@
 //! Types and utilities relating to exchange rates and conversions 
 //! between different types of commodities.
 
-extern crate chrono;
-extern crate rust_decimal;
-
-#[cfg(feature = "serde-support")]
-extern crate serde;
-#[cfg(feature = "serde-support")]
-extern crate serde_json;
-
-extern crate thiserror;
-
 use commodity::{Commodity, CurrencyCode};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-support")]
 use serde::Deserialize;
 
 use std::collections::HashMap;
