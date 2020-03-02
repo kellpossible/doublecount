@@ -37,6 +37,8 @@ pub enum AccountingError {
     NoExchangeRateSupplied(Commodity, CurrencyCode),
     #[error("the account state with the id {0} was requested but cannot be found")]
     MissingAccountState(AccountID),
+    #[error("the balance assertion {0} failed, the actual state of the account is {1}")]
+    BalanceAssertionFailed(BalanceAssertion, Commodity)
 }
 
 /// A collection of [Action](Action)s to be executed in order to
@@ -508,10 +510,10 @@ impl TransactionElement {
     }
 }
 
-#[derive(Debug)]
 /// A type of [Action](Action) to edit the
 /// [AccountStatus](AccountStatus) of a given [Account](Account)'s
 /// [AccountState](AccountState).
+#[derive(Debug)]
 pub struct EditAccountStatus {
     account: Rc<Account>,
     newstatus: AccountStatus,
@@ -550,6 +552,55 @@ impl Action for EditAccountStatus {
             .unwrap();
         account_state.status = self.newstatus;
         return Ok(());
+    }
+}
+
+// A type of [Action](Action) to check and assert the balance of a
+// given [Account](Account) in its [AccountStatus](AccountStatus) at
+// the beginning of the given date.
+#[derive(Debug, Clone)]
+pub struct BalanceAssertion {
+    account: Rc<Account>,
+    date: NaiveDate,
+    expected_balance: Commodity,
+}
+
+impl BalanceAssertion {
+    // Create a new [BalanceAssertion](BalanceAssertion). The balance
+    // will be considered at the beginning of the provided `date`.
+    pub fn new(account: Rc<Account>, date: NaiveDate, expected_balance: Commodity) -> BalanceAssertion {
+        BalanceAssertion {
+            account,
+            date,
+            expected_balance,
+        }
+    }
+}
+
+impl fmt::Display for BalanceAssertion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Assert Account Balance")
+    }
+}
+
+impl Action for BalanceAssertion {
+    fn date(&self) -> NaiveDate {
+        self.date
+    }
+
+    fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
+        match program_state.get_account_state(&self.account.id) {
+            Some(state) => {
+                if state.amount.eq_approx(self.expected_balance, Commodity::default_epsilon()) {
+                    Ok(())
+                } else {
+                    Err(AccountingError::BalanceAssertionFailed(self.clone(), state.amount))
+                }
+            },
+            None => {
+                Err(AccountingError::MissingAccountState(self.account.id.clone()))
+            }
+        }
     }
 }
 
