@@ -1,3 +1,6 @@
+//! Types and utilities relating to exchange rates and conversions 
+//! between different types of commodities.
+
 extern crate chrono;
 extern crate rust_decimal;
 
@@ -18,19 +21,15 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use thiserror::Error;
 
+/// An error associated with functionality in the [exchange_rate](crate::exchange_rate) module.
 #[derive(Error, Debug)]
 pub enum ExchangeRateError {
     #[error("the currency {0} is not present in the exchange rate")]
     CurrencyNotPresent(CurrencyCode),
 }
 
-pub enum ExchangeRateSource {
-    /// A local source
-    Local,
-    /// From the internet (string indicating the source)
-    Internet(String),
-}
-
+/// Represents the exchange rate between [Commodity](commodity::Commodity)s 
+/// with different [Currency](commodity::Currency)s.
 #[cfg_attr(feature = "serde", derive(Deserialize))]
 #[derive(Debug, Clone)]
 pub struct ExchangeRate {
@@ -50,7 +49,7 @@ impl ExchangeRate {
         self.rates.get(currency_code)
     }
 
-    /// Convert the currency of a [Commodity](Commodity) from one currency to another
+    /// Convert the currency of a [Commodity](commodity::Commodity) from one currency to another
     /// using this [ExchangeRate](ExchangeRate).
     pub fn convert(
         &self,

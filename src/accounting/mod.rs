@@ -1,4 +1,6 @@
-use commodity::{Commodity, Currency, CurrencyCode, CurrencyError};
+//! The accounting system.
+
+use commodity::{Commodity, Currency, CurrencyCode, CommodityError};
 use crate::exchange_rate::{ExchangeRate, ExchangeRateError};
 use std::collections::HashMap;
 
@@ -11,11 +13,13 @@ use thiserror::Error;
 
 const ACCOUNT_ID_SIZE: usize = 20;
 
+/// An error associated with functionality in the [accounting](./index.html) module.
+/// 
 /// TODO: add context for the error for where it occurred within the [Program](Program)
 #[derive(Error, Debug)]
 pub enum AccountingError {
     #[error("error relating to currencies")]
-    Currency(#[from] CurrencyError),
+    Currency(#[from] CommodityError),
     #[error("error relating to exchange rates")]
     ExchangeRate(#[from] ExchangeRateError),
     #[error("invalid account status ({:?}) for account {}", .status, .account.id)]
