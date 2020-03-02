@@ -1,6 +1,9 @@
 [package]
 name = "doublecount"
 version = "0.1.0"
+description = "A double entry accounting system/library."
+keywords = ["financial", "currency", "accounting", "exchange", "rate"]
+categories = ["science", "mathematics"]
 authors = ["Luke Frisken <l.frisken@gmail.com>"]
 edition = "2018"
 license = "MIT"

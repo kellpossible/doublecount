@@ -1,6 +1,8 @@
-//! A double entry accounting system.
+//! A double entry accounting system/library.
 //! 
 //! The doublecount package has the following optional cargo features:
+//! 
+//! # Optional Features
 //! 
 //! + `serde-support`
 //!   + Optional
