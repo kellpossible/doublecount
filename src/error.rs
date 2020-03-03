@@ -1,7 +1,6 @@
-use super::{Account, AccountID, AccountStatus, FailedBalanceAssertion, Transaction};
+use super::{AccountID, AccountStatus, FailedBalanceAssertion, Transaction};
 use commodity::exchange_rate::ExchangeRateError;
 use commodity::{Commodity, CommodityError, CurrencyCode};
-use std::rc::Rc;
 use thiserror::Error;
 
 /// An error associated with functionality in the [accounting](./index.html) module.
@@ -13,9 +12,9 @@ pub enum AccountingError {
     Currency(#[from] CommodityError),
     #[error("error relating to exchange rates")]
     ExchangeRate(#[from] ExchangeRateError),
-    #[error("invalid account status ({:?}) for account {}", .status, .account.id)]
+    #[error("invalid account status ({:?}) for account {}", .status, .account_id)]
     InvalidAccountStatus {
-        account: Rc<Account>,
+        account_id: AccountID,
         status: AccountStatus,
     },
     #[error("error parsing a date from string")]

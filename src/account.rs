@@ -1,46 +1,46 @@
-use commodity::{Commodity, Currency};
+use arrayvec::ArrayString;
+use commodity::{Commodity, CurrencyCode};
 use nanoid::nanoid;
 use rust_decimal::Decimal;
 use std::rc::Rc;
 
-const ACCOUNT_ID_SIZE: usize = 20;
+#[cfg(feature = "serde-support")]
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+/// The size in characters/bytes of the [Account](Account) id.
+const ACCOUNT_ID_LENGTH: usize = 20;
+
 /// The status of an [Account](Account) stored within an [AccountState](AccountState).
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AccountStatus {
     /// The account is open
     Open,
     /// The account is closed
     Closed,
 }
+/// The type to use for the id of [Account](Account)s.
+pub type AccountID = ArrayString<[u8; ACCOUNT_ID_LENGTH]>;
 
 /// A way to categorize [Account](Account)s.
-#[derive(Debug)]
-pub struct AccountCategory {
-    /// The name of the category
-    pub name: String,
-    /// The parent category (or `None` if this is a root category)
-    pub parent: Option<Rc<AccountCategory>>,
-}
-
-/// The type to use for the id of [Account](Account)s.
-pub type AccountID = String;
+pub type AccountCategory = String;
 
 /// Details for an account, which holds a [Commodity](Commodity)
-/// with a type of [Currency](Currency).
+/// with a type of [Currency](commodity::Currency).
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Account {
-    /// A unique identifier for this `Account`
+    /// A unique identifier for this `Account`, currently generated using [nanoid](nanoid).
     pub id: AccountID,
 
     /// The name of this `Account`
     pub name: Option<String>,
 
     /// The type of currency to be stored in this account
-    pub currency: Rc<Currency>,
+    pub currency_code: CurrencyCode,
 
     /// The category that this account part of
-    pub category: Option<Rc<AccountCategory>>,
+    pub category: Option<AccountCategory>,
 }
 
 impl Account {
@@ -48,13 +48,20 @@ impl Account {
     /// [AccountState](AccountState)).
     pub fn new(
         name: Option<&str>,
-        currency: Rc<Currency>,
-        category: Option<Rc<AccountCategory>>,
+        currency_code: CurrencyCode,
+        category: Option<AccountCategory>,
     ) -> Account {
+        let id_string: String = nanoid!(ACCOUNT_ID_LENGTH);
         Account {
-            id: nanoid!(ACCOUNT_ID_SIZE),
+            id: ArrayString::from(id_string.as_ref()).expect(
+                format!(
+                    "generated id string {0} should fit within ACCOUNT_ID_LENGTH: {1}",
+                    id_string, ACCOUNT_ID_LENGTH
+                )
+                .as_ref(),
+            ),
             name: name.map(|s| String::from(s)),
-            currency,
+            currency_code,
             category,
         }
     }

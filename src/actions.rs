@@ -1,4 +1,4 @@
-use super::{Account, AccountStatus, AccountingError, ProgramState};
+use super::{AccountID, AccountStatus, AccountingError, ProgramState};
 use chrono::NaiveDate;
 use commodity::exchange_rate::ExchangeRate;
 use commodity::Commodity;
@@ -6,6 +6,9 @@ use rust_decimal::{prelude::Zero, Decimal};
 use std::fmt;
 use std::rc::Rc;
 use std::slice;
+
+#[cfg(feature = "serde-support")]
+use serde::{Deserialize, Serialize};
 
 /// A representation of what type of [Action](Action) is being performed.
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Hash, Clone)]
@@ -60,7 +63,7 @@ pub trait Action: fmt::Display + fmt::Debug {
 ///
 /// let mut actions: Vec<Rc<dyn Action>> = Vec::new();
 ///
-/// // let's pretend we created and added 
+/// // let's pretend we created and added
 /// // some actions to the actions vector
 ///
 /// // sort the actions using this order
@@ -102,6 +105,7 @@ impl Ord for ActionOrder {
 /// transaction's [TransactionElement](TransactionElement)s needs to
 /// be equal to zero, or one of the elements needs to have a `None`
 /// value `amount`.
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Transaction {
     /// Description of this transaction.
@@ -146,14 +150,14 @@ impl Transaction {
     ///
     /// let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
     ///
-    /// let account1 = Rc::from(Account::new(Some("Account 1"), aud.clone(), None));
-    /// let account2 = Rc::from(Account::new(Some("Account 2"), aud.clone(), None));
+    /// let account1 = Rc::from(Account::new(Some("Account 1"), aud.code, None));
+    /// let account2 = Rc::from(Account::new(Some("Account 2"), aud.code, None));
     ///
     /// let transaction = Transaction::new_simple(
     ///    Some("balancing"),
     ///    Local::today().naive_local(),
-    ///    account1.clone(),
-    ///    account2.clone(),
+    ///    account1.id,
+    ///    account2.id,
     ///    Commodity::from_str("100.0 AUD").unwrap(),
     ///    None,
     /// );
@@ -162,15 +166,15 @@ impl Transaction {
     /// let element0 = transaction.elements.get(0).unwrap();
     /// let element1 = transaction.elements.get(1).unwrap();
     /// assert_eq!(Some(Commodity::from_str("-100.0 AUD").unwrap()), element0.amount);
-    /// assert_eq!(account1, element0.account);
-    /// assert_eq!(account2, element1.account);
+    /// assert_eq!(account1.id, element0.account_id);
+    /// assert_eq!(account2.id, element1.account_id);
     /// assert_eq!(None, element1.amount);
     /// ```
     pub fn new_simple(
         description: Option<&str>,
         date: NaiveDate,
-        from_account: Rc<Account>,
-        to_account: Rc<Account>,
+        from_account: AccountID,
+        to_account: AccountID,
         amount: Commodity,
         exchange_rate: Option<ExchangeRate>,
     ) -> Transaction {
@@ -184,9 +188,9 @@ impl Transaction {
         )
     }
 
-    /// Get the [TransactionElement](TransactionElement) associated with the given [Account](Account).
-    pub fn get_element(&self, account: &Account) -> Option<&TransactionElement> {
-        self.elements.iter().find(|e| e.account.as_ref() == account)
+    /// Get the [TransactionElement](TransactionElement) associated with the given [Account](Account)'s id.
+    pub fn get_element(&self, account_id: &AccountID) -> Option<&TransactionElement> {
+        self.elements.iter().find(|e| &e.account_id == account_id)
     }
 }
 
@@ -228,21 +232,34 @@ impl Action for Transaction {
             }
         }
 
-        let sum_currency = match empty_amount_element {
+        let sum_currency_code = match empty_amount_element {
             Some(empty_i) => {
                 let empty_element = self.elements.get(empty_i).unwrap();
-                empty_element.account.currency.clone()
+
+                match program_state.get_account(&empty_element.account_id) {
+                    Some(account) => account.currency_code,
+                    None => {
+                        return Err(AccountingError::MissingAccountState(
+                            empty_element.account_id,
+                        ))
+                    }
+                }
             }
-            None => self
-                .elements
-                .get(0)
-                .expect("there should be at least 2 elements in the transaction")
-                .account
-                .currency
-                .clone(),
+            None => {
+                let account_id = self
+                    .elements
+                    .get(0)
+                    .expect("there should be at least 2 elements in the transaction")
+                    .account_id;
+
+                match program_state.get_account(&account_id) {
+                    Some(account) => account.currency_code,
+                    None => return Err(AccountingError::MissingAccountState(account_id)),
+                }
+            }
         };
 
-        let mut sum = Commodity::new(Decimal::zero(), sum_currency.code);
+        let mut sum = Commodity::new(Decimal::zero(), sum_currency_code);
 
         let mut modified_elements = self.elements.clone();
 
@@ -287,19 +304,18 @@ impl Action for Transaction {
 
         for transaction in &modified_elements {
             let mut account_state = program_state
-                .get_account_state_mut(&transaction.account.id)
+                .get_account_state_mut(&transaction.account_id)
                 .expect(
                     format!(
-                        "unable to find state for account with id: {}, name: {:?} please ensure this account was added to the program state before execution.",
-                        transaction.account.id,
-                        transaction.account.name
+                        "unable to find state for account with id: {} please ensure this account was added to the program state before execution.",
+                        transaction.account_id
                     )
                     .as_ref(),
                 );
 
             match account_state.status {
                 AccountStatus::Closed => Err(AccountingError::InvalidAccountStatus {
-                    account: transaction.account.clone(),
+                    account_id: transaction.account_id,
                     status: account_state.status,
                 }),
                 _ => Ok(()),
@@ -335,11 +351,12 @@ impl Action for Transaction {
     }
 }
 
-#[derive(Debug, Clone)]
 /// An element of a [Transaction](Transaction).
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
 pub struct TransactionElement {
     /// The account to perform the transaction to
-    pub account: Rc<Account>,
+    pub account_id: AccountID,
 
     /// The amount of [Commodity](Commodity) to add to the account.
     ///
@@ -357,12 +374,12 @@ pub struct TransactionElement {
 impl TransactionElement {
     /// Create a new [TransactionElement](TransactionElement).
     pub fn new(
-        account: Rc<Account>,
+        account_id: AccountID,
         amount: Option<Commodity>,
         exchange_rate: Option<ExchangeRate>,
     ) -> TransactionElement {
         TransactionElement {
-            account,
+            account_id,
             amount,
             exchange_rate,
         }
@@ -372,9 +389,10 @@ impl TransactionElement {
 /// A type of [Action](Action) to edit the
 /// [AccountStatus](AccountStatus) of a given [Account](Account)'s
 /// [AccountState](super::AccountState).
+// #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct EditAccountStatus {
-    account: Rc<Account>,
+    account_id: AccountID,
     newstatus: AccountStatus,
     date: NaiveDate,
 }
@@ -382,12 +400,12 @@ pub struct EditAccountStatus {
 impl EditAccountStatus {
     /// Create a new [EditAccountStatus](EditAccountStatus).
     pub fn new(
-        account: Rc<Account>,
+        account_id: AccountID,
         newstatus: AccountStatus,
         date: NaiveDate,
     ) -> EditAccountStatus {
         EditAccountStatus {
-            account,
+            account_id,
             newstatus,
             date,
         }
@@ -407,7 +425,7 @@ impl Action for EditAccountStatus {
 
     fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
         let mut account_state = program_state
-            .get_account_state_mut(&self.account.id)
+            .get_account_state_mut(&self.account_id)
             .unwrap();
         account_state.status = self.newstatus;
         return Ok(());
@@ -425,9 +443,10 @@ impl Action for EditAccountStatus {
 /// When running its [perform()](Action::perform()) method, if this
 /// assertion fails, a [FailedBalanceAssertion](FailedBalanceAssertion)
 /// will be recorded in the [ProgramState](ProgramState).
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct BalanceAssertion {
-    account: Rc<Account>,
+    account_id: AccountID,
     date: NaiveDate,
     expected_balance: Commodity,
 }
@@ -436,12 +455,12 @@ impl BalanceAssertion {
     /// Create a new [BalanceAssertion](BalanceAssertion). The balance
     /// will be considered at the beginning of the provided `date`.
     pub fn new(
-        account: Rc<Account>,
+        account_id: AccountID,
         date: NaiveDate,
         expected_balance: Commodity,
     ) -> BalanceAssertion {
         BalanceAssertion {
-            account,
+            account_id,
             date,
             expected_balance,
         }
@@ -488,7 +507,7 @@ impl Action for BalanceAssertion {
     }
 
     fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
-        match program_state.get_account_state(&self.account.id) {
+        match program_state.get_account_state(&self.account_id) {
             Some(state) => {
                 if state
                     .amount
@@ -499,7 +518,7 @@ impl Action for BalanceAssertion {
             }
             None => {
                 return Err(AccountingError::MissingAccountState(
-                    self.account.id.clone(),
+                    self.account_id,
                 ));
             }
         }

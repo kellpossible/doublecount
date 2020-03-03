@@ -5,7 +5,6 @@ use super::{
 use commodity::exchange_rate::ExchangeRate;
 use commodity::{Commodity, CurrencyCode};
 use std::collections::HashMap;
-
 use std::rc::Rc;
 
 /// A collection of [Action](Action)s to be executed in order to
@@ -26,6 +25,46 @@ impl Program {
         }
     }
 }
+
+// #[cfg(feature = "serde-support")]
+// impl<'de> Deserialize<'de> for Program {
+//     fn deserialize<D>(deserializer: D) -> std::result::Result<Program, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         use serde::de::{self, Visitor};
+
+//         struct ProgramVisitor;
+
+//         impl<'de> Visitor<'de> for ProgramVisitor {
+//             type Value = Program;
+
+//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+//                 formatter.write_str(
+//                     format!(
+//                         "a string with a maximum of {} characters",
+//                         commodity::CURRENCY_CODE_LENGTH
+//                     )
+//                     .as_ref(),
+//                 )
+//             }
+
+//             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+//             where
+//                 E: de::Error,
+//             {
+//                 CurrencyCode::from_str(v).map_err(|e| {
+//                     E::custom(format!(
+//                         "there was an error ({}) parsing the currency code string",
+//                         e
+//                     ))
+//                 })
+//             }
+//         }
+
+//         deserializer.deserialize_str(CurrencyCodeVisitor)
+//     }
+// }
 
 /// The state of a [Program](Program) being executed.
 pub struct ProgramState {
@@ -77,10 +116,10 @@ impl ProgramState {
 
         for account in accounts {
             account_states.insert(
-                account.id.clone(),
+                account.id,
                 AccountState::new(
                     account.clone(),
-                    Commodity::zero(account.currency.code),
+                    Commodity::zero(account.currency_code),
                     account_status,
                 ),
             );
@@ -111,6 +150,12 @@ impl ProgramState {
         };
 
         Ok(())
+    }
+
+    /// Get the reference to an [Account](Account) using it's [AccountID](AccountID).
+    pub fn get_account(&self, account_id: &AccountID) -> Option<&Account> {
+        self.get_account_state(account_id)
+            .map(|state| state.account.as_ref())
     }
 
     /// Get a reference to the `AccountState` associated with a given `Account`.
