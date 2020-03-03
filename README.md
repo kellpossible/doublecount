@@ -1,11 +1,18 @@
-# Doublecount [![](https://img.shields.io/crates/v/doublecount.svg)](https://crates.io/crates/doublecount) [![](https://img.shields.io/github/license/kellpossible/doublecount)](https://github.com/kellpossible/doublecount/blob/master/LICENSE.txt) [![](https://docs.rs/doublecount/badge.svg)](https://docs.rs/doublecount/)
+# Doublecount [![crates.io badge](https://img.shields.io/crates/v/doublecount.svg)](https://crates.io/crates/doublecount) [![license badge](https://img.shields.io/github/license/kellpossible/doublecount)](https://github.com/kellpossible/doublecount/blob/master/LICENSE.txt) [![docs.rs badge](https://docs.rs/doublecount/badge.svg)](https://docs.rs/doublecount/)
 
 A double entry accounting system/library for Rust.
 
-This project is very much inspired by [beancount](http://furius.ca/beancount/), however it currently presents a much simpler model. It has been designed to embed within other applications for the purpose of running accounting calculations.
+This project is very much inspired by [beancount](http://furius.ca/beancount/),
+however it currently presents a much simpler model. It has been designed to
+embed within other applications for the purpose of running accounting
+calculations.
+
+Commodities within the system are represented using the primitives provided by
+the [commodity](https://crates.io/crates/commodity) library, which is in turn
+backed by [rust_decimal](https://crates.io/crates/rust_decimal).
 
 This library is under active development, however it should already be usable
-for some simple purposes. There likely to be some API changes in the future to
+for some simple purposes. There's likely to be some API changes in the future to
 allow transactions/actions to be streamed into the system, and also to support
 parallel computations of transactions to allow large programs to efficiently
 executed on multi-core computers.
@@ -24,7 +31,7 @@ The following features can be enabled to provide extra functionality:
 ```rust
 use doublecount::{
     AccountStatus, EditAccountStatus, Account, Program, Action,
-    ProgramState, Transaction, TransactionElement, BalanceAssertion, 
+    ProgramState, Transaction, TransactionElement, BalanceAssertion,
 };
 use commodity::{Currency, Commodity};
 use chrono::NaiveDate;
