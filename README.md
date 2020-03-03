@@ -7,5 +7,6 @@ A double entry accounting system/library for Rust.
 The following features can be enabled to provide extra functionality:
 
 + `serde-support`
+  + **Currently incomplete**
   + Enables support for serialization/de-serialization via `serde`
   + Enables support for json serialization/de-serialization via `serde_json`
