@@ -46,7 +46,7 @@ pub trait Action: fmt::Display + fmt::Debug {
     /// Perform the action to mutate the [ProgramState](ProgramState).
     fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError>;
 
-    // What type of action is being performed.
+    /// What type of action is being performed.
     fn action_type(&self) -> ActionType;
 }
 
@@ -56,10 +56,12 @@ pub trait Action: fmt::Display + fmt::Debug {
 /// # Example
 /// ```
 /// use doublecount::{Action, ActionOrder};
+/// use std::rc::Rc;
 ///
 /// let mut actions: Vec<Rc<dyn Action>> = Vec::new();
 ///
-/// // let's pretend we created and added some actions to the vector
+/// // let's pretend we created and added 
+/// // some actions to the actions vector
 ///
 /// // sort the actions using this order
 /// actions.sort_by_key(|a| ActionOrder(a.clone()));
@@ -182,6 +184,7 @@ impl Transaction {
         )
     }
 
+    /// Get the [TransactionElement](TransactionElement) associated with the given [Account](Account).
     pub fn get_element(&self, account: &Account) -> Option<&TransactionElement> {
         self.elements.iter().find(|e| e.account.as_ref() == account)
     }
