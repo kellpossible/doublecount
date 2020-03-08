@@ -141,11 +141,13 @@ pub use actions::*;
 pub use error::AccountingError;
 pub use program::*;
 
-// create a list of actions with associated dates
-// a transaction is a type of action
-// opening an account is another type of action
-// the list is a program which will be executed, to compute
-// the final resulting values. All should add up to zero.
+#[cfg(doctest)]
+#[macro_use]
+extern crate doc_comment;
+
+#[cfg(doctest)]
+doctest!("../README.md");
+
 
 #[cfg(test)]
 mod tests {

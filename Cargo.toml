@@ -30,6 +30,7 @@ arrayvec = "0.5"
 
 [dev-dependencies]
 serde_json = { version = "1.0" } # for unit tests
+doc-comment = "0.3"
 
 [package.metadata.docs.rs]
 features = ["serde-support"]
