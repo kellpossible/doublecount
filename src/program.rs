@@ -78,24 +78,26 @@ pub struct ProgramState {
     current_action_index: usize,
 }
 
-/// Sum the values in all the accounts into a single [Commodity](Commodity), and
-/// use the supplied exchange rate if required to convert a currency in an account
-/// to the `sum_currency`.
+/// Sum the values in all the accounts into a single
+/// [Commodity](Commodity), and use the supplied exchange rate if
+/// required to convert a type of commodity in an account to the
+/// [CommidityType](commodity::CommodityType) associated with the
+/// id `sum_commodity_type_id`.
 pub fn sum_account_states(
     account_states: &HashMap<AccountID, AccountState>,
-    sum_currency: CommodityTypeID,
+    sum_commodity_type_id: CommodityTypeID,
     exchange_rate: Option<&ExchangeRate>,
 ) -> Result<Commodity, AccountingError> {
-    let mut sum = Commodity::zero(sum_currency);
+    let mut sum = Commodity::zero(sum_commodity_type_id);
 
     for (_, account_state) in account_states {
-        let account_amount = if account_state.amount.type_id != sum_currency {
+        let account_amount = if account_state.amount.type_id != sum_commodity_type_id {
             match exchange_rate {
-                Some(rate) => rate.convert(account_state.amount, sum_currency)?,
+                Some(rate) => rate.convert(account_state.amount, sum_commodity_type_id)?,
                 None => {
                     return Err(AccountingError::NoExchangeRateSupplied(
                         account_state.amount,
-                        sum_currency,
+                        sum_commodity_type_id,
                     ))
                 }
             }

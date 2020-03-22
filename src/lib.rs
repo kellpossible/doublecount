@@ -22,7 +22,7 @@
 //! use std::rc::Rc;
 //! use std::str::FromStr;
 //!
-//! // create a currency from its iso4317 alphanumeric code
+//! // create a commodity from a currency's iso4317 alphanumeric code
 //! let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 //!
 //! // Create a couple of accounts

@@ -21,7 +21,7 @@ pub enum AccountingError {
     DateParseError(#[from] chrono::ParseError),
     #[error("invalid transaction {0:?} because {1}")]
     InvalidTransaction(Transaction, String),
-    #[error("failed checksum, the sum of account values in the common currency ({0}) does not equal zero")]
+    #[error("failed checksum, the sum of account values in the common commodity type ({0}) does not equal zero")]
     FailedCheckSum(Commodity),
     #[error("no exchange rate supplied, unable to convert commodity {0} to type {1}")]
     NoExchangeRateSupplied(Commodity, CommodityTypeID),

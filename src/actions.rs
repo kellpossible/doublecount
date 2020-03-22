@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// A representation of what type of [Action](Action) is being performed.
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Hash, Clone)]
 pub enum ActionType {
-    /// An [Action](Action) to edit the status of an [Account](Account).
+    /// An [Action](Action) to edit the status of an [Account](crate::Account).
     /// Represented by the [EditAccountStatus](EditAccountStatus) struct.
     ///
     /// This action has the highest priority when being sorted, because
@@ -24,7 +24,7 @@ pub enum ActionType {
     /// a [Program](super::Program) is being executed. Represented by a
     /// [BalanceAssertion](BalanceAssertion) struct.
     BalanceAssertion,
-    /// A [Action](Action) to perform a transaction between [Account](Account)s.
+    /// A [Action](Action) to perform a transaction between [Account](crate::Account)s.
     /// Represented by the [Transaction](Transaction) struct.
     Transaction,
 }
@@ -188,7 +188,8 @@ impl Transaction {
         )
     }
 
-    /// Get the [TransactionElement](TransactionElement) associated with the given [Account](Account)'s id.
+    /// Get the [TransactionElement](TransactionElement) associated
+    /// with the given [Account](crate::Account)'s id.
     pub fn get_element(&self, account_id: &AccountID) -> Option<&TransactionElement> {
         self.elements.iter().find(|e| &e.account_id == account_id)
     }
@@ -232,7 +233,7 @@ impl Action for Transaction {
             }
         }
 
-        let sum_currency_code = match empty_amount_element {
+        let sum_commodity_type_id = match empty_amount_element {
             Some(empty_i) => {
                 let empty_element = self.elements.get(empty_i).unwrap();
 
@@ -259,7 +260,7 @@ impl Action for Transaction {
             }
         };
 
-        let mut sum = Commodity::new(Decimal::zero(), sum_currency_code);
+        let mut sum = Commodity::new(Decimal::zero(), sum_commodity_type_id);
 
         let mut modified_elements = self.elements.clone();
 
@@ -268,7 +269,7 @@ impl Action for Transaction {
             match empty_amount_element {
                 Some(empty_i) => {
                     if i != empty_i {
-                        //TODO: perform currency conversion here if required
+                        //TODO: perform commodity type conversion here if required
                         sum = match sum.add(&element.amount.as_ref().unwrap()) {
                             Ok(value) => value,
                             Err(error) => return Err(AccountingError::Commodity(error)),
@@ -321,7 +322,7 @@ impl Action for Transaction {
                 _ => Ok(()),
             }?;
 
-            // TODO: perform the currency conversion using the exchange rate (if present)
+            // TODO: perform the commodity type conversion using the exchange rate (if present)
 
             let transaction_amount = match &transaction.amount {
                 Some(amount) => amount,
@@ -367,7 +368,7 @@ pub struct TransactionElement {
     pub amount: Option<Commodity>,
 
     /// The exchange rate to use for converting the amount in this element
-    /// to a different [Currency](commodity::Currency)
+    /// to a different [CommodityType](commodity::CommodityType).
     pub exchange_rate: Option<ExchangeRate>,
 }
 
@@ -387,7 +388,7 @@ impl TransactionElement {
 }
 
 /// A type of [Action](Action) to edit the
-/// [AccountStatus](AccountStatus) of a given [Account](Account)'s
+/// [AccountStatus](AccountStatus) of a given [Account](crate::Account)'s
 /// [AccountState](super::AccountState).
 // #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug)]
@@ -437,7 +438,7 @@ impl Action for EditAccountStatus {
 }
 
 /// A type of [Action](Action) to check and assert the balance of a
-/// given [Account](Account) in its [AccountStatus](AccountStatus) at
+/// given [Account](crate::Account) in its [AccountStatus](AccountStatus) at
 /// the beginning of the given date.
 ///
 /// When running its [perform()](Action::perform()) method, if this

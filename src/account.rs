@@ -26,7 +26,7 @@ pub type AccountID = ArrayString<[u8; ACCOUNT_ID_LENGTH]>;
 pub type AccountCategory = String;
 
 /// Details for an account, which holds a [Commodity](Commodity)
-/// with a type of [Currency](commodity::Currency).
+/// with a type of [CommodityType](commodity::CommodityType).
 #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct Account {
@@ -36,7 +36,7 @@ pub struct Account {
     /// The name of this `Account`
     pub name: Option<String>,
 
-    /// The type of currency to be stored in this account
+    /// The id of the type of commodity to be stored in this account
     pub commodity_type_id: CommodityTypeID,
 
     /// The category that this account part of
