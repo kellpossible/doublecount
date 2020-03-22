@@ -17,6 +17,8 @@ allow transactions/actions to be streamed into the system, and also to support
 parallel computations of transactions to allow large programs to efficiently
 executed on multi-core computers.
 
+**[Changelog](./CHANGELOG.md)**
+
 ## Optional Features
 
 The following features can be enabled to provide extra functionality:
@@ -32,17 +34,17 @@ use doublecount::{
     AccountStatus, EditAccountStatus, Account, Program, Action,
     ProgramState, Transaction, TransactionElement, BalanceAssertion,
 };
-use commodity::{Currency, Commodity};
+use commodity::{CommodityType, Commodity};
 use chrono::NaiveDate;
 use std::rc::Rc;
 use std::str::FromStr;
 
 // create a currency from its iso4317 alphanumeric code
-let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
+let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 
 // Create a couple of accounts
-let account1 = Rc::from(Account::new(Some("Account 1"), aud.code, None));
-let account2 = Rc::from(Account::new(Some("Account 2"), aud.code, None));
+let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
+let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
 
 // create a new program state, with accounts starting Closed
 let mut program_state = ProgramState::new(

@@ -1,5 +1,5 @@
 use arrayvec::ArrayString;
-use commodity::{Commodity, CurrencyCode};
+use commodity::{Commodity, CommodityTypeID};
 use nanoid::nanoid;
 use rust_decimal::Decimal;
 use std::rc::Rc;
@@ -37,7 +37,7 @@ pub struct Account {
     pub name: Option<String>,
 
     /// The type of currency to be stored in this account
-    pub currency_code: CurrencyCode,
+    pub commodity_type_id: CommodityTypeID,
 
     /// The category that this account part of
     pub category: Option<AccountCategory>,
@@ -48,7 +48,7 @@ impl Account {
     /// [AccountState](AccountState)).
     pub fn new(
         name: Option<&str>,
-        currency_code: CurrencyCode,
+        commodity_type_id: CommodityTypeID,
         category: Option<AccountCategory>,
     ) -> Account {
         let id_string: String = nanoid!(ACCOUNT_ID_LENGTH);
@@ -61,7 +61,7 @@ impl Account {
                 .as_ref(),
             ),
             name: name.map(|s| String::from(s)),
-            currency_code,
+            commodity_type_id: commodity_type_id,
             category,
         }
     }

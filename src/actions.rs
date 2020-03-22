@@ -144,14 +144,14 @@ impl Transaction {
     /// # use doublecount::Transaction;
     /// # use std::rc::Rc;
     /// use doublecount::Account;
-    /// use commodity::{Currency, Commodity};
+    /// use commodity::{CommodityType, Commodity};
     /// use chrono::Local;
     /// use std::str::FromStr;
     ///
-    /// let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
+    /// let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
     ///
-    /// let account1 = Rc::from(Account::new(Some("Account 1"), aud.code, None));
-    /// let account2 = Rc::from(Account::new(Some("Account 2"), aud.code, None));
+    /// let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
+    /// let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
     ///
     /// let transaction = Transaction::new_simple(
     ///    Some("balancing"),
@@ -237,7 +237,7 @@ impl Action for Transaction {
                 let empty_element = self.elements.get(empty_i).unwrap();
 
                 match program_state.get_account(&empty_element.account_id) {
-                    Some(account) => account.currency_code,
+                    Some(account) => account.commodity_type_id,
                     None => {
                         return Err(AccountingError::MissingAccountState(
                             empty_element.account_id,
@@ -253,7 +253,7 @@ impl Action for Transaction {
                     .account_id;
 
                 match program_state.get_account(&account_id) {
-                    Some(account) => account.currency_code,
+                    Some(account) => account.commodity_type_id,
                     None => return Err(AccountingError::MissingAccountState(account_id)),
                 }
             }
@@ -271,7 +271,7 @@ impl Action for Transaction {
                         //TODO: perform currency conversion here if required
                         sum = match sum.add(&element.amount.as_ref().unwrap()) {
                             Ok(value) => value,
-                            Err(error) => return Err(AccountingError::Currency(error)),
+                            Err(error) => return Err(AccountingError::Commodity(error)),
                         }
                     }
                 }
@@ -289,7 +289,7 @@ impl Action for Transaction {
 
                 sum = match sum.add(&negated_sum) {
                     Ok(value) => value,
-                    Err(error) => return Err(AccountingError::Currency(error)),
+                    Err(error) => return Err(AccountingError::Commodity(error)),
                 }
             }
             None => {}
@@ -338,7 +338,7 @@ impl Action for Transaction {
             account_state.amount = match account_state.amount.add(transaction_amount) {
                 Ok(commodity) => commodity,
                 Err(err) => {
-                    return Err(AccountingError::Currency(err));
+                    return Err(AccountingError::Commodity(err));
                 }
             }
         }
@@ -517,9 +517,7 @@ impl Action for BalanceAssertion {
                 }
             }
             None => {
-                return Err(AccountingError::MissingAccountState(
-                    self.account_id,
-                ));
+                return Err(AccountingError::MissingAccountState(self.account_id));
             }
         }
 

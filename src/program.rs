@@ -3,7 +3,7 @@ use super::{
     FailedBalanceAssertion,
 };
 use commodity::exchange_rate::ExchangeRate;
-use commodity::{Commodity, CurrencyCode};
+use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -83,13 +83,13 @@ pub struct ProgramState {
 /// to the `sum_currency`.
 pub fn sum_account_states(
     account_states: &HashMap<AccountID, AccountState>,
-    sum_currency: CurrencyCode,
+    sum_currency: CommodityTypeID,
     exchange_rate: Option<&ExchangeRate>,
 ) -> Result<Commodity, AccountingError> {
     let mut sum = Commodity::zero(sum_currency);
 
     for (_, account_state) in account_states {
-        let account_amount = if account_state.amount.currency_code != sum_currency {
+        let account_amount = if account_state.amount.type_id != sum_currency {
             match exchange_rate {
                 Some(rate) => rate.convert(account_state.amount, sum_currency)?,
                 None => {
@@ -119,7 +119,7 @@ impl ProgramState {
                 account.id,
                 AccountState::new(
                     account.clone(),
-                    Commodity::zero(account.currency_code),
+                    Commodity::zero(account.commodity_type_id),
                     account_status,
                 ),
             );

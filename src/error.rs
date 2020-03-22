@@ -1,6 +1,6 @@
 use super::{AccountID, AccountStatus, FailedBalanceAssertion, Transaction};
 use commodity::exchange_rate::ExchangeRateError;
-use commodity::{Commodity, CommodityError, CurrencyCode};
+use commodity::{Commodity, CommodityError, CommodityTypeID};
 use thiserror::Error;
 
 /// An error associated with functionality in the [accounting](./index.html) module.
@@ -8,8 +8,8 @@ use thiserror::Error;
 /// TODO: add context for the error for where it occurred within the [Program](super::Program)
 #[derive(Error, Debug)]
 pub enum AccountingError {
-    #[error("error relating to currencies")]
-    Currency(#[from] CommodityError),
+    #[error("error relating to a commodity")]
+    Commodity(#[from] CommodityError),
     #[error("error relating to exchange rates")]
     ExchangeRate(#[from] ExchangeRateError),
     #[error("invalid account status ({:?}) for account {}", .status, .account_id)]
@@ -23,8 +23,8 @@ pub enum AccountingError {
     InvalidTransaction(Transaction, String),
     #[error("failed checksum, the sum of account values in the common currency ({0}) does not equal zero")]
     FailedCheckSum(Commodity),
-    #[error("no exchange rate supplied, unable to convert commodity {0} to currency {1}")]
-    NoExchangeRateSupplied(Commodity, CurrencyCode),
+    #[error("no exchange rate supplied, unable to convert commodity {0} to type {1}")]
+    NoExchangeRateSupplied(Commodity, CommodityTypeID),
     #[error("the account state with the id {0} was requested but cannot be found")]
     MissingAccountState(AccountID),
     #[error("the balance assertion failed {0}")]

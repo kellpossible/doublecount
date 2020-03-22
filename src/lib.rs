@@ -17,17 +17,17 @@
 //!     AccountStatus, EditAccountStatus, Account, Program, Action,
 //!     ProgramState, Transaction, TransactionElement, BalanceAssertion,
 //! };
-//! use commodity::{Currency, Commodity};
+//! use commodity::{CommodityType, Commodity};
 //! use chrono::NaiveDate;
 //! use std::rc::Rc;
 //! use std::str::FromStr;
 //!
 //! // create a currency from its iso4317 alphanumeric code
-//! let aud = Rc::from(Currency::from_alpha3("AUD").unwrap());
+//! let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 //!
 //! // Create a couple of accounts
-//! let account1 = Rc::from(Account::new(Some("Account 1"), aud.code, None));
-//! let account2 = Rc::from(Account::new(Some("Account 2"), aud.code, None));
+//! let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
+//! let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
 //!
 //! // create a new program state, with accounts starting Closed
 //! let mut program_state = ProgramState::new(
@@ -148,7 +148,6 @@ extern crate doc_comment;
 #[cfg(doctest)]
 doctest!("../README.md");
 
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -156,15 +155,18 @@ mod tests {
         EditAccountStatus, Program, ProgramState, Transaction, TransactionElement,
     };
     use chrono::NaiveDate;
-    use commodity::{Commodity, Currency, CurrencyCode};
+    use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::rc::Rc;
     use std::str::FromStr;
 
     #[test]
     fn execute_program() {
-        let aud = Rc::from(Currency::new(CurrencyCode::from_str("AUD").unwrap(), None));
-        let account1 = Rc::from(Account::new(Some("Account 1"), aud.code, None));
-        let account2 = Rc::from(Account::new(Some("Account 2"), aud.code, None));
+        let aud = Rc::from(CommodityType::new(
+            CommodityTypeID::from_str("AUD").unwrap(),
+            None,
+        ));
+        let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
+        let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
 
         let accounts = vec![account1.clone(), account2.clone()];
 
@@ -252,7 +254,7 @@ mod tests {
             Commodity::from_str("0.0 AUD").unwrap(),
             sum_account_states(
                 &program_state.account_states,
-                CurrencyCode::from_str("AUD").unwrap(),
+                CommodityTypeID::from_str("AUD").unwrap(),
                 None
             )
             .unwrap()
