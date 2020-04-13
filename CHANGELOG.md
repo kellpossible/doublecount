@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1
+
++ Bump `rust_decimal` dependency up to using generic version `1` to address [#5](https://github.com/kellpossible/doublecount/issues/5).
+
 ## v0.6.0
 
 + Renamed argument in `sum_account_states()`, `sum_currency` to

@@ -46,8 +46,8 @@ pub struct Account {
 impl Account {
     /// Create a new account and add it to this program state (and create its associated
     /// [AccountState](AccountState)).
-    pub fn new(
-        name: Option<&str>,
+    pub fn new<S: Into<String>>(
+        name: Option<S>,
         commodity_type_id: CommodityTypeID,
         category: Option<AccountCategory>,
     ) -> Account {
@@ -60,7 +60,7 @@ impl Account {
                 )
                 .as_ref(),
             ),
-            name: name.map(|s| String::from(s)),
+            name: name.map(|s| s.into()),
             commodity_type_id: commodity_type_id,
             category,
         }

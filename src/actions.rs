@@ -121,13 +121,13 @@ pub struct Transaction {
 
 impl Transaction {
     /// Create a new [Transaction](Transaction).
-    pub fn new(
-        description: Option<String>,
+    pub fn new<S: Into<String>>(
+        description: Option<S>,
         date: NaiveDate,
         elements: Vec<TransactionElement>,
     ) -> Transaction {
         Transaction {
-            description,
+            description: description.map(|s| s.into()),
             date,
             elements,
         }
@@ -170,8 +170,8 @@ impl Transaction {
     /// assert_eq!(account2.id, element1.account_id);
     /// assert_eq!(None, element1.amount);
     /// ```
-    pub fn new_simple(
-        description: Option<&str>,
+    pub fn new_simple<S: Into<String>>(
+        description: Option<S>,
         date: NaiveDate,
         from_account: AccountID,
         to_account: AccountID,
@@ -179,7 +179,7 @@ impl Transaction {
         exchange_rate: Option<ExchangeRate>,
     ) -> Transaction {
         Transaction::new(
-            description.map(|s| String::from(s)),
+            description,
             date,
             vec![
                 TransactionElement::new(from_account, Some(amount.neg()), exchange_rate.clone()),
