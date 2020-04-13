@@ -1,8 +1,13 @@
 # Changelog
 
+## v0.6.2
+
++ Fix changelog fo `v0.6.1`
+
 ## v0.6.1
 
 + Bump `rust_decimal` dependency up to using generic version `1` to address [#5](https://github.com/kellpossible/doublecount/issues/5).
++ Update `Account#new()`, `Transaction#new()` and `Transaction#new_simple()` to use `Into<String>` to address [#4](https://github.com/kellpossible/doublecount/issues/4).
 
 ## v0.6.0
 
