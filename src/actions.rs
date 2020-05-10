@@ -50,8 +50,12 @@ pub enum ActionTypeValue {
     Transaction(Transaction),
 }
 
-impl ActionTypeValue {
-    pub fn as_action(&self) -> &dyn Action {
+pub trait ActionTypeValueEnum {
+    fn as_action(&self) -> &dyn Action;
+}
+
+impl ActionTypeValueEnum for ActionTypeValue {
+    fn as_action(&self) -> &dyn Action {
         match self {
             ActionTypeValue::EditAccountStatus(action) => action,
             ActionTypeValue::BalanceAssertion(action) => action,
@@ -78,7 +82,6 @@ impl From<Transaction> for ActionTypeValue {
     }
 }
 
-
 /// Represents an action which can modify [ProgramState](ProgramState).
 pub trait Action: fmt::Display + fmt::Debug {
     /// The date/time (in the account history) that the action was performed.
@@ -98,7 +101,7 @@ pub trait Action: fmt::Display + fmt::Debug {
 //     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 //     where
 //         S: Serializer {
-        
+
 //         match self.action_type_value() {
 //             ActionTypeValue::EditAccountStatus(action) => action.serialize(serializer),
 //             ActionTypeValue::BalanceAssertion(action) => action.serialize(serializer),
@@ -123,30 +126,42 @@ pub trait Action: fmt::Display + fmt::Debug {
 /// // sort the actions using this order
 /// actions.sort_by_key(|a| ActionOrder(a.clone()));
 /// ```
-pub struct ActionOrder(pub Rc<ActionTypeValue>);
+pub struct ActionOrder<A>(pub Rc<A>);
 
-impl PartialEq for ActionOrder {
-    fn eq(&self, other: &ActionOrder) -> bool {
+impl<A> PartialEq for ActionOrder<A>
+where
+    A: ActionTypeValueEnum,
+{
+    fn eq(&self, other: &ActionOrder<A>) -> bool {
         let self_action = self.0.as_action();
         let other_action = other.0.as_action();
-        self_action.action_type() == other_action.action_type() && self_action.date() == other_action.date()
+        self_action.action_type() == other_action.action_type()
+            && self_action.date() == other_action.date()
     }
 }
 
-impl Eq for ActionOrder {}
+impl<A> Eq for ActionOrder<A> where A: ActionTypeValueEnum {}
 
-impl PartialOrd for ActionOrder {
+impl<A> PartialOrd for ActionOrder<A>
+where
+    A: ActionTypeValueEnum,
+{
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let self_action = self.0.as_action();
         let other_action = other.0.as_action();
         self_action
             .date()
             .partial_cmp(&other_action.date())
-            .map(|date_order| date_order.then(self_action.action_type().cmp(&other_action.action_type())))
+            .map(|date_order| {
+                date_order.then(self_action.action_type().cmp(&other_action.action_type()))
+            })
     }
 }
 
-impl Ord for ActionOrder {
+impl<A> Ord for ActionOrder<A>
+where
+    A: ActionTypeValueEnum,
+{
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let self_action = self.0.as_action();
         let other_action = other.0.as_action();

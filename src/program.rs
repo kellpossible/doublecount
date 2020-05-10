@@ -7,24 +7,27 @@ use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::{ActionTypeValue};
+use crate::{ActionTypeValue, ActionTypeValueEnum};
 #[cfg(feature = "serde-support")]
 use serde::{de, Deserialize, Deserializer};
 
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program {
-    pub actions: Vec<Rc<ActionTypeValue>>,
+pub struct Program<A = ActionTypeValue> {
+    pub actions: Vec<Rc<A>>,
 }
 
-impl Program {
+impl<A> Program<A>
+where
+    A: ActionTypeValueEnum,
+{
     /// Create a new [Program](Program).
     ///
     /// The provided `actions` will be sorted using [ActionOrder](ActionOrder).
-    pub fn new(actions: Vec<Rc<ActionTypeValue>>) -> Program {
-        let mut sorted_actions = actions;
-        sorted_actions.sort_by_key(|a| ActionOrder(a.clone()));
+    pub fn new(actions: Vec<Rc<A>>) -> Program<A> {
+        let mut sorted_actions: Vec<Rc<A>> = actions;
+        sorted_actions.sort_by_key(|a| ActionOrder::<A>(a.clone()));
         Program {
             actions: sorted_actions,
         }
@@ -35,6 +38,7 @@ impl Program {
     }
 }
 
+// TODO: make this generic over action type value enum
 #[cfg(feature = "serde-support")]
 struct ProgramVisitor;
 
@@ -46,9 +50,9 @@ impl<'de> de::Visitor<'de> for ProgramVisitor {
         formatter.write_str(format!("Program comprising of a vector of Actions",).as_ref())
     }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<Program, A::Error>
+    fn visit_seq<S>(self, mut seq: S) -> Result<Program, S::Error>
     where
-        A: de::SeqAccess<'de>,
+        S: de::SeqAccess<'de>,
     {
         let mut actions: Vec<Rc<ActionTypeValue>> = match seq.size_hint() {
             Some(size_hint) => Vec::with_capacity(size_hint),
@@ -191,10 +195,13 @@ impl ProgramState {
 #[cfg(test)]
 mod tests {
     use super::Program;
-    use crate::{Action, BalanceAssertion, TransactionElement, Transaction, EditAccountStatus, AccountStatus, Account, AccountID, ActionTypeValue};
-    use std::{str::FromStr, rc::Rc};
+    use crate::{
+        Account, AccountID, AccountStatus, Action, ActionTypeValue, BalanceAssertion,
+        EditAccountStatus, Transaction, TransactionElement,
+    };
     use chrono::NaiveDate;
-    use commodity::{CommodityType, Commodity, CommodityTypeID};
+    use commodity::{Commodity, CommodityType, CommodityTypeID};
+    use std::{rc::Rc, str::FromStr};
 
     #[test]
     fn program_serde() {
@@ -249,9 +256,19 @@ mod tests {
             CommodityTypeID::from_str("AUD").unwrap(),
             None,
         ));
-        
-        let account1 = Rc::from(Account::new(AccountID::from("TestAccount1").unwrap(),Some("Test Account 1"), aud.id, None));
-        let account2 = Rc::from(Account::new(AccountID::from("TestAccount2").unwrap(),Some("Test Account 2"), aud.id, None));
+
+        let account1 = Rc::from(Account::new(
+            AccountID::from("TestAccount1").unwrap(),
+            Some("Test Account 1"),
+            aud.id,
+            None,
+        ));
+        let account2 = Rc::from(Account::new(
+            AccountID::from("TestAccount2").unwrap(),
+            Some("Test Account 2"),
+            aud.id,
+            None,
+        ));
 
         let open_account1 = EditAccountStatus::new(
             account1.id,

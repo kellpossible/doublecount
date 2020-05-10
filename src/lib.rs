@@ -155,11 +155,11 @@ mod tests {
         sum_account_states, Account, AccountState, AccountStatus, Action, BalanceAssertion,
         EditAccountStatus, Program, ProgramState, Transaction, TransactionElement,
     };
+    use crate::ActionTypeValue;
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::rc::Rc;
     use std::str::FromStr;
-    use crate::ActionTypeValue;
 
     #[test]
     fn execute_program() {
