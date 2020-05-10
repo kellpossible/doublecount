@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::slice;
 
 #[cfg(feature = "serde-support")]
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 
 /// A representation of what type of [Action](Action) is being performed.
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Hash, Clone)]
@@ -27,6 +27,15 @@ pub enum ActionType {
     /// A [Action](Action) to perform a transaction between [Account](crate::Account)s.
     /// Represented by the [Transaction](Transaction) struct.
     Transaction,
+}
+
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde-support", serde(tag = "type"))]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ActionTypeValue {
+    EditAccountStatus(EditAccountStatus),
+    BalanceAssertion(BalanceAssertion),
+    Transaction(Transaction),
 }
 
 impl ActionType {
@@ -52,6 +61,22 @@ pub trait Action: fmt::Display + fmt::Debug {
     /// What type of action is being performed.
     fn action_type(&self) -> ActionType;
 }
+
+// TODO: perhaps I can make Action implement Serialize if serde is enabled? no because it uses generic trait parameter
+// have a look at how https://github.com/dtolnay/typetag works and see if this can work?
+// #[cfg(feature = "serde-support")]
+// impl Serialize for dyn Action {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer {
+        
+//         match self.action_type_value() {
+//             ActionTypeValue::EditAccountStatus(action) => action.serialize(serializer),
+//             ActionTypeValue::BalanceAssertion(action) => action.serialize(serializer),
+//             ActionTypeValue::Transaction(action) => action.serialize(serializer),
+//         }
+//     }
+// }
 
 /// A way to sort [Action](Action)s by their date, and then by the
 /// priority of their [ActionType](ActionType).
@@ -106,7 +131,7 @@ impl Ord for ActionOrder {
 /// be equal to zero, or one of the elements needs to have a `None`
 /// value `amount`.
 #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Transaction {
     /// Description of this transaction.
     pub description: Option<String>,
@@ -150,8 +175,8 @@ impl Transaction {
     ///
     /// let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
     ///
-    /// let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
-    /// let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
+    /// let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+    /// let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
     ///
     /// let transaction = Transaction::new_simple(
     ///    Some("balancing"),
@@ -354,7 +379,7 @@ impl Action for Transaction {
 
 /// An element of a [Transaction](Transaction).
 #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionElement {
     /// The account to perform the transaction to
     pub account_id: AccountID,
@@ -390,8 +415,8 @@ impl TransactionElement {
 /// A type of [Action](Action) to edit the
 /// [AccountStatus](AccountStatus) of a given [Account](crate::Account)'s
 /// [AccountState](super::AccountState).
-// #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
-#[derive(Debug)]
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EditAccountStatus {
     account_id: AccountID,
     newstatus: AccountStatus,
@@ -445,7 +470,7 @@ impl Action for EditAccountStatus {
 /// assertion fails, a [FailedBalanceAssertion](FailedBalanceAssertion)
 /// will be recorded in the [ProgramState](ProgramState).
 #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BalanceAssertion {
     account_id: AccountID,
     date: NaiveDate,
@@ -532,8 +557,11 @@ impl Action for BalanceAssertion {
 
 #[cfg(test)]
 mod tests {
-    use super::ActionType;
-    use std::collections::HashSet;
+    use super::{ActionType, BalanceAssertion, EditAccountStatus, Transaction};
+    use crate::{AccountID, AccountStatus};
+    use chrono::NaiveDate;
+    use commodity::Commodity;
+    use std::{collections::HashSet, str::FromStr};
 
     #[test]
     fn action_type_order() {
@@ -568,5 +596,91 @@ mod tests {
         ];
 
         assert_eq!(action_types_ordered, action_types_unordered);
+    }
+
+    #[cfg(feature = "serde-support")]
+    #[test]
+    fn edit_account_status_serde() {
+        use serde_json;
+
+        let json = r#"{
+    "account_id": "TestAccount",
+    "newstatus": "Open",
+    "date": "2020-05-10"
+}"#;
+        let action: EditAccountStatus = serde_json::from_str(json).unwrap();
+
+        let reference_action = EditAccountStatus::new(
+            AccountID::from("TestAccount").unwrap(),
+            AccountStatus::Open,
+            NaiveDate::from_ymd(2020, 05, 10),
+        );
+
+        assert_eq!(action, reference_action);
+
+        insta::assert_json_snapshot!(action);
+    }
+
+    #[cfg(feature = "serde-support")]
+    #[test]
+    fn balance_assertion_serde() {
+        use serde_json;
+
+        let json = r#"{
+    "account_id": "TestAccount",
+    "date": "2020-05-10",
+    "expected_balance": {
+        "value": "1.0",
+        "type_id": "AUD"
+    }
+}"#;
+        let action: BalanceAssertion = serde_json::from_str(json).unwrap();
+
+        let reference_action = BalanceAssertion::new(
+            AccountID::from("TestAccount").unwrap(),
+            NaiveDate::from_ymd(2020, 05, 10),
+            Commodity::from_str("1.0 AUD").unwrap(),
+        );
+
+        assert_eq!(action, reference_action);
+
+        insta::assert_json_snapshot!(action);
+    }
+
+    #[cfg(feature = "serde-support")]
+    #[test]
+    fn transaction_serde() {
+        use serde_json;
+
+        let json = r#"{
+    "description": "TestTransaction",
+    "date": "2020-05-10",
+    "elements": [
+        {
+            "account_id": "TestAccount1",
+            "amount": {
+                "value": "-1.0",
+                "type_id": "AUD"
+            }
+        },
+        {
+            "account_id": "TestAccount2"
+        }
+    ]  
+}"#;
+        let action: Transaction = serde_json::from_str(json).unwrap();
+
+        let reference_action = Transaction::new_simple(
+            Some("TestTransaction"),
+            NaiveDate::from_ymd(2020, 05, 10),
+            AccountID::from("TestAccount1").unwrap(),
+            AccountID::from("TestAccount2").unwrap(),
+            Commodity::from_str("1.0 AUD").unwrap(),
+            None,
+        );
+
+        assert_eq!(action, reference_action);
+
+        insta::assert_json_snapshot!(action);
     }
 }

@@ -1,0 +1,23 @@
+---
+source: src/actions.rs
+expression: action
+---
+{
+  "description": "TestTransaction",
+  "date": "2020-05-10",
+  "elements": [
+    {
+      "account_id": "TestAccount1",
+      "amount": {
+        "value": "-1.0",
+        "type_id": "AUD"
+      },
+      "exchange_rate": null
+    },
+    {
+      "account_id": "TestAccount2",
+      "amount": null,
+      "exchange_rate": null
+    }
+  ]
+}

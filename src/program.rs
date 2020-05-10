@@ -7,10 +7,15 @@ use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::{ActionTypeValue};
+#[cfg(feature = "serde-support")]
+use serde::{de, Deserialize, Deserializer};
+
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
+#[derive(Debug, Clone)]
 pub struct Program {
-    actions: Vec<Rc<dyn Action>>,
+    pub actions: Vec<Rc<dyn Action>>,
 }
 
 impl Program {
@@ -24,47 +29,75 @@ impl Program {
             actions: sorted_actions,
         }
     }
+
+    fn roughly_eq(&self, other: &Program) -> bool {
+        let mut roughly_eq = true;
+
+        for (i, action) in self.actions.iter().enumerate() {
+            let other_action = match other.actions.get(i) {
+                None => {
+                    roughly_eq = false;
+                    break;
+                }
+                Some(action) => action
+            };
+
+            roughly_eq &= action.action_type() == other_action.action_type();
+            roughly_eq &= action.date() == other_action.date();
+            roughly_eq &= format!("{:?}", action) == format!("{:?}", other_action);
+        }
+
+        roughly_eq
+    }
+
+    pub fn len(&self) -> usize {
+        self.actions.len()
+    }
 }
 
-// #[cfg(feature = "serde-support")]
-// impl<'de> Deserialize<'de> for Program {
-//     fn deserialize<D>(deserializer: D) -> std::result::Result<Program, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         use serde::de::{self, Visitor};
+#[cfg(feature = "serde-support")]
+struct ProgramVisitor;
 
-//         struct ProgramVisitor;
+#[cfg(feature = "serde-support")]
+impl<'de> de::Visitor<'de> for ProgramVisitor {
+    type Value = Program;
 
-//         impl<'de> Visitor<'de> for ProgramVisitor {
-//             type Value = Program;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str(format!("Program comprising of a vector of Actions",).as_ref())
+    }
 
-//             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//                 formatter.write_str(
-//                     format!(
-//                         "a string with a maximum of {} characters",
-//                         commodity::CURRENCY_CODE_LENGTH
-//                     )
-//                     .as_ref(),
-//                 )
-//             }
+    fn visit_seq<A>(self, mut seq: A) -> Result<Program, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut actions: Vec<Rc<dyn Action>> = match seq.size_hint() {
+            Some(size_hint) => Vec::with_capacity(size_hint),
+            None => Vec::new(),
+        };
 
-//             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-//             where
-//                 E: de::Error,
-//             {
-//                 CurrencyCode::from_str(v).map_err(|e| {
-//                     E::custom(format!(
-//                         "there was an error ({}) parsing the currency code string",
-//                         e
-//                     ))
-//                 })
-//             }
-//         }
+        while let Some(action_value_type) = seq.next_element::<ActionTypeValue>()? {
+            let action: Rc<dyn Action> = match action_value_type {
+                ActionTypeValue::EditAccountStatus(action) => Rc::new(action),
+                ActionTypeValue::BalanceAssertion(action) => Rc::new(action),
+                ActionTypeValue::Transaction(action) => Rc::new(action),
+            };
 
-//         deserializer.deserialize_str(CurrencyCodeVisitor)
-//     }
-// }
+            actions.push(action);
+        }
+
+        Ok(Program::new(actions))
+    }
+}
+
+#[cfg(feature = "serde-support")]
+impl<'de> Deserialize<'de> for Program {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Program, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(ProgramVisitor)
+    }
+}
 
 /// The state of a [Program](Program) being executed.
 pub struct ProgramState {
@@ -178,5 +211,118 @@ impl ProgramState {
     ) {
         self.failed_balance_assertions
             .push(failed_balance_assertion);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Program;
+    use crate::{Action, BalanceAssertion, TransactionElement, Transaction, EditAccountStatus, AccountStatus, Account, AccountID};
+    use std::{str::FromStr, rc::Rc};
+    use chrono::NaiveDate;
+    use commodity::{CommodityType, Commodity, CommodityTypeID};
+
+    #[test]
+    fn program_serde() {
+        let json = r#"
+[
+    {
+        "type": "EditAccountStatus",
+        "account_id": "TestAccount1",
+        "newstatus": "Open",
+        "date": "2020-01-01"
+    },
+    {
+        "type": "EditAccountStatus",
+        "account_id": "TestAccount2",
+        "newstatus": "Open",
+        "date": "2020-01-01"
+    },
+    {
+        "type": "Transaction",
+        "description": "Test Transaction",
+        "date": "2020-01-02",
+        "elements": [
+            {
+                "account_id": "TestAccount1",
+                "amount": {
+                    "value": "-2.52",
+                    "type_id": "AUD"
+                }
+            },
+            {
+                "account_id": "TestAccount2",
+                "amount": {
+                    "value": "2.52",
+                    "type_id": "AUD"
+                }
+            }
+        ]  
+    },
+    {
+        "type": "BalanceAssertion",
+        "account_id": "TestAccount1",
+        "date": "2020-01-03",
+        "expected_balance": {
+            "value": "-3.52",
+            "type_id": "AUD"
+        }
+    }
+]"#;
+        let program: Program = serde_json::from_str(json).unwrap();
+
+        let aud = Rc::from(CommodityType::new(
+            CommodityTypeID::from_str("AUD").unwrap(),
+            None,
+        ));
+        
+        let account1 = Rc::from(Account::new(AccountID::from("TestAccount1").unwrap(),Some("Test Account 1"), aud.id, None));
+        let account2 = Rc::from(Account::new(AccountID::from("TestAccount2").unwrap(),Some("Test Account 2"), aud.id, None));
+
+        let open_account1 = EditAccountStatus::new(
+            account1.id,
+            AccountStatus::Open,
+            NaiveDate::from_str("2020-01-01").unwrap(),
+        );
+
+        let open_account2 = EditAccountStatus::new(
+            account2.id,
+            AccountStatus::Open,
+            NaiveDate::from_str("2020-01-01").unwrap(),
+        );
+
+        let transaction = Transaction::new(
+            Some(String::from("Test Transaction")),
+            NaiveDate::from_str("2020-01-02").unwrap(),
+            vec![
+                TransactionElement::new(
+                    account1.id,
+                    Some(Commodity::from_str("-2.52 AUD").unwrap()),
+                    None,
+                ),
+                TransactionElement::new(
+                    account2.id,
+                    Some(Commodity::from_str("2.52 AUD").unwrap()),
+                    None,
+                ),
+            ],
+        );
+
+        let balance_assertion = BalanceAssertion::new(
+            account1.id,
+            NaiveDate::from_str("2020-01-03").unwrap(),
+            Commodity::from_str("-3.52 AUD").unwrap(),
+        );
+
+        let actions: Vec<Rc<dyn Action>> = vec![
+            Rc::from(open_account1),
+            Rc::from(open_account2),
+            Rc::from(transaction),
+            Rc::from(balance_assertion),
+        ];
+
+        let reference_program = Program::new(actions);
+
+        assert!(program.roughly_eq(&reference_program));
     }
 }

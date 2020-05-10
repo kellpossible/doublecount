@@ -44,25 +44,42 @@ pub struct Account {
 }
 
 impl Account {
-    /// Create a new account and add it to this program state (and create its associated
-    /// [AccountState](AccountState)).
-    pub fn new<S: Into<String>>(
+    /// Create a new account with an automatically generated id (using
+    /// [nanoid](nanoid)) and add it to this program state (and create
+    /// its associated [AccountState](AccountState)).
+    pub fn new_with_id<S: Into<String>>(
         name: Option<S>,
         commodity_type_id: CommodityTypeID,
         category: Option<AccountCategory>,
     ) -> Account {
         let id_string: String = nanoid!(ACCOUNT_ID_LENGTH);
-        Account {
-            id: ArrayString::from(id_string.as_ref()).expect(
+        Self::new(
+            ArrayString::from(id_string.as_ref()).expect(
                 format!(
                     "generated id string {0} should fit within ACCOUNT_ID_LENGTH: {1}",
                     id_string, ACCOUNT_ID_LENGTH
                 )
                 .as_ref(),
             ),
-            name: name.map(|s| s.into()),
-            commodity_type_id: commodity_type_id,
+            name,
+            commodity_type_id,
             category,
+        )
+    }
+
+    /// Create a new account and add it to this program state (and create its associated
+    /// [AccountState](AccountState)).
+    pub fn new<S: Into<String>>(
+        id: AccountID,
+        name: Option<S>,
+        commodity_type_id: CommodityTypeID,
+        category: Option<AccountCategory>,
+    ) -> Account {
+        Account {
+            id,
+            name: name.map(|s| s.into()),
+            commodity_type_id,
+            category: category.map(|c| c.into()),
         }
     }
 }
@@ -110,5 +127,38 @@ impl AccountState {
         self.account == other.account
             && self.status == other.status
             && self.amount.eq_approx(other.amount, epsilon)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Account;
+    use crate::AccountID;
+    use commodity::CommodityTypeID;
+    use std::str::FromStr;
+
+    #[cfg(feature = "serde-support")]
+    #[test]
+    fn account_serde() {
+        use serde_json;
+
+        let json = r#"{
+  "id": "ABCDEFGHIJKLMNOPQRST",
+  "name": "Test Account",
+  "commodity_type_id": "USD",
+  "category": "Expense"
+}"#;
+
+        let account: Account = serde_json::from_str(json).unwrap();
+
+        let reference_account = Account::new(
+            AccountID::from("ABCDEFGHIJKLMNOPQRST").unwrap(),
+            Some("TestAccount"),
+            CommodityTypeID::from_str("AUD").unwrap(),
+            Some("Expense".to_string()),
+        );
+
+        assert_eq!(reference_account, account);
+        insta::assert_json_snapshot!(account);
     }
 }

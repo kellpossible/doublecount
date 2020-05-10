@@ -43,8 +43,8 @@ use std::str::FromStr;
 let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 
 // Create a couple of accounts
-let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
-let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
+let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
 
 // create a new program state, with accounts starting Closed
 let mut program_state = ProgramState::new(
