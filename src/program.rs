@@ -13,41 +13,21 @@ use serde::{de, Deserialize, Deserializer};
 
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
-    pub actions: Vec<Rc<dyn Action>>,
+    pub actions: Vec<Rc<ActionTypeValue>>,
 }
 
 impl Program {
     /// Create a new [Program](Program).
     ///
     /// The provided `actions` will be sorted using [ActionOrder](ActionOrder).
-    pub fn new(actions: Vec<Rc<dyn Action>>) -> Program {
+    pub fn new(actions: Vec<Rc<ActionTypeValue>>) -> Program {
         let mut sorted_actions = actions;
         sorted_actions.sort_by_key(|a| ActionOrder(a.clone()));
         Program {
             actions: sorted_actions,
         }
-    }
-
-    fn roughly_eq(&self, other: &Program) -> bool {
-        let mut roughly_eq = true;
-
-        for (i, action) in self.actions.iter().enumerate() {
-            let other_action = match other.actions.get(i) {
-                None => {
-                    roughly_eq = false;
-                    break;
-                }
-                Some(action) => action
-            };
-
-            roughly_eq &= action.action_type() == other_action.action_type();
-            roughly_eq &= action.date() == other_action.date();
-            roughly_eq &= format!("{:?}", action) == format!("{:?}", other_action);
-        }
-
-        roughly_eq
     }
 
     pub fn len(&self) -> usize {
@@ -70,19 +50,13 @@ impl<'de> de::Visitor<'de> for ProgramVisitor {
     where
         A: de::SeqAccess<'de>,
     {
-        let mut actions: Vec<Rc<dyn Action>> = match seq.size_hint() {
+        let mut actions: Vec<Rc<ActionTypeValue>> = match seq.size_hint() {
             Some(size_hint) => Vec::with_capacity(size_hint),
             None => Vec::new(),
         };
 
-        while let Some(action_value_type) = seq.next_element::<ActionTypeValue>()? {
-            let action: Rc<dyn Action> = match action_value_type {
-                ActionTypeValue::EditAccountStatus(action) => Rc::new(action),
-                ActionTypeValue::BalanceAssertion(action) => Rc::new(action),
-                ActionTypeValue::Transaction(action) => Rc::new(action),
-            };
-
-            actions.push(action);
+        while let Some(action) = seq.next_element::<ActionTypeValue>()? {
+            actions.push(Rc::new(action));
         }
 
         Ok(Program::new(actions))
@@ -170,7 +144,7 @@ impl ProgramState {
     /// Execute a given [Program](Program) to mutate this state.
     pub fn execute_program(&mut self, program: &Program) -> Result<(), AccountingError> {
         for (index, action) in program.actions.iter().enumerate() {
-            action.perform(self)?;
+            action.as_action().perform(self)?;
             self.current_action_index = index;
         }
 
@@ -217,7 +191,7 @@ impl ProgramState {
 #[cfg(test)]
 mod tests {
     use super::Program;
-    use crate::{Action, BalanceAssertion, TransactionElement, Transaction, EditAccountStatus, AccountStatus, Account, AccountID};
+    use crate::{Action, BalanceAssertion, TransactionElement, Transaction, EditAccountStatus, AccountStatus, Account, AccountID, ActionTypeValue};
     use std::{str::FromStr, rc::Rc};
     use chrono::NaiveDate;
     use commodity::{CommodityType, Commodity, CommodityTypeID};
@@ -314,15 +288,15 @@ mod tests {
             Commodity::from_str("-3.52 AUD").unwrap(),
         );
 
-        let actions: Vec<Rc<dyn Action>> = vec![
-            Rc::from(open_account1),
-            Rc::from(open_account2),
-            Rc::from(transaction),
-            Rc::from(balance_assertion),
+        let actions: Vec<Rc<ActionTypeValue>> = vec![
+            Rc::new(open_account1.into()),
+            Rc::new(open_account2.into()),
+            Rc::new(transaction.into()),
+            Rc::new(balance_assertion.into()),
         ];
 
         let reference_program = Program::new(actions);
 
-        assert!(program.roughly_eq(&reference_program));
+        assert_eq!(reference_program, program);
     }
 }

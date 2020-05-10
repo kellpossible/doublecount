@@ -29,15 +29,6 @@ pub enum ActionType {
     Transaction,
 }
 
-#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde-support", serde(tag = "type"))]
-#[derive(Debug, Clone, PartialEq)]
-pub enum ActionTypeValue {
-    EditAccountStatus(EditAccountStatus),
-    BalanceAssertion(BalanceAssertion),
-    Transaction(Transaction),
-}
-
 impl ActionType {
     /// Return an iterator over all available [ActionType](ActionType) variants.
     pub fn iterator() -> slice::Iter<'static, ActionType> {
@@ -49,6 +40,44 @@ impl ActionType {
         ACTION_TYPES.iter()
     }
 }
+
+#[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde-support", serde(tag = "type"))]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ActionTypeValue {
+    EditAccountStatus(EditAccountStatus),
+    BalanceAssertion(BalanceAssertion),
+    Transaction(Transaction),
+}
+
+impl ActionTypeValue {
+    pub fn as_action(&self) -> &dyn Action {
+        match self {
+            ActionTypeValue::EditAccountStatus(action) => action,
+            ActionTypeValue::BalanceAssertion(action) => action,
+            ActionTypeValue::Transaction(action) => action,
+        }
+    }
+}
+
+impl From<EditAccountStatus> for ActionTypeValue {
+    fn from(action: EditAccountStatus) -> Self {
+        ActionTypeValue::EditAccountStatus(action)
+    }
+}
+
+impl From<BalanceAssertion> for ActionTypeValue {
+    fn from(action: BalanceAssertion) -> Self {
+        ActionTypeValue::BalanceAssertion(action)
+    }
+}
+
+impl From<Transaction> for ActionTypeValue {
+    fn from(action: Transaction) -> Self {
+        ActionTypeValue::Transaction(action)
+    }
+}
+
 
 /// Represents an action which can modify [ProgramState](ProgramState).
 pub trait Action: fmt::Display + fmt::Debug {
@@ -83,10 +112,10 @@ pub trait Action: fmt::Display + fmt::Debug {
 ///
 /// # Example
 /// ```
-/// use doublecount::{Action, ActionOrder};
+/// use doublecount::{ActionTypeValue, ActionOrder};
 /// use std::rc::Rc;
 ///
-/// let mut actions: Vec<Rc<dyn Action>> = Vec::new();
+/// let mut actions: Vec<Rc<ActionTypeValue>> = Vec::new();
 ///
 /// // let's pretend we created and added
 /// // some actions to the actions vector
@@ -94,11 +123,13 @@ pub trait Action: fmt::Display + fmt::Debug {
 /// // sort the actions using this order
 /// actions.sort_by_key(|a| ActionOrder(a.clone()));
 /// ```
-pub struct ActionOrder(pub Rc<dyn Action>);
+pub struct ActionOrder(pub Rc<ActionTypeValue>);
 
 impl PartialEq for ActionOrder {
     fn eq(&self, other: &ActionOrder) -> bool {
-        self.0.action_type() == other.0.action_type() && self.0.date() == other.0.date()
+        let self_action = self.0.as_action();
+        let other_action = other.0.as_action();
+        self_action.action_type() == other_action.action_type() && self_action.date() == other_action.date()
     }
 }
 
@@ -106,19 +137,23 @@ impl Eq for ActionOrder {}
 
 impl PartialOrd for ActionOrder {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0
+        let self_action = self.0.as_action();
+        let other_action = other.0.as_action();
+        self_action
             .date()
-            .partial_cmp(&other.0.date())
-            .map(|date_order| date_order.then(self.0.action_type().cmp(&other.0.action_type())))
+            .partial_cmp(&other_action.date())
+            .map(|date_order| date_order.then(self_action.action_type().cmp(&other_action.action_type())))
     }
 }
 
 impl Ord for ActionOrder {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
+        let self_action = self.0.as_action();
+        let other_action = other.0.as_action();
+        self_action
             .date()
-            .cmp(&other.0.date())
-            .then(self.0.action_type().cmp(&other.0.action_type()))
+            .cmp(&other_action.date())
+            .then(self_action.action_type().cmp(&other_action.action_type()))
     }
 }
 

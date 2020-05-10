@@ -16,6 +16,7 @@
 //! use doublecount::{
 //!     AccountStatus, EditAccountStatus, Account, Program, Action,
 //!     ProgramState, Transaction, TransactionElement, BalanceAssertion,
+//!     ActionTypeValue,
 //! };
 //! use commodity::{CommodityType, Commodity};
 //! use chrono::NaiveDate;
@@ -100,14 +101,14 @@
 //!     Commodity::from_str("1.52 AUD").unwrap()
 //! );
 //!
-//! let actions: Vec<Rc<dyn Action>> = vec![
-//!     Rc::from(open_account1),
-//!     Rc::from(open_account2),
-//!     Rc::from(transaction1),
-//!     Rc::from(balance_assertion1),
-//!     Rc::from(transaction2),
-//!     Rc::from(balance_assertion2),
-//!     Rc::from(balance_assertion3),
+//! let actions: Vec<Rc<ActionTypeValue>> = vec![
+//!     Rc::new(open_account1.into()),
+//!     Rc::new(open_account2.into()),
+//!     Rc::new(transaction1.into()),
+//!     Rc::new(balance_assertion1.into()),
+//!     Rc::new(transaction2.into()),
+//!     Rc::new(balance_assertion2.into()),
+//!     Rc::new(balance_assertion3.into()),
 //! ];
 //!
 //! // create a program from the actions
@@ -158,6 +159,7 @@ mod tests {
     use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::rc::Rc;
     use std::str::FromStr;
+    use crate::ActionTypeValue;
 
     #[test]
     fn execute_program() {
@@ -220,12 +222,12 @@ mod tests {
             Commodity::from_str("-3.52 AUD").unwrap(),
         );
 
-        let actions: Vec<Rc<dyn Action>> = vec![
-            Rc::from(open_account1),
-            Rc::from(open_account2),
-            Rc::from(transaction1),
-            Rc::from(transaction2),
-            Rc::from(balance_assertion),
+        let actions: Vec<Rc<ActionTypeValue>> = vec![
+            Rc::new(open_account1.into()),
+            Rc::new(open_account2.into()),
+            Rc::new(transaction1.into()),
+            Rc::new(transaction2.into()),
+            Rc::new(balance_assertion.into()),
         ];
 
         let program = Program::new(actions);
