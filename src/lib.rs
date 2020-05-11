@@ -16,6 +16,7 @@
 //! use doublecount::{
 //!     AccountStatus, EditAccountStatus, Account, Program, Action,
 //!     ProgramState, Transaction, TransactionElement, BalanceAssertion,
+//!     ActionTypeValue,
 //! };
 //! use commodity::{CommodityType, Commodity};
 //! use chrono::NaiveDate;
@@ -26,8 +27,8 @@
 //! let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 //!
 //! // Create a couple of accounts
-//! let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
-//! let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
+//! let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+//! let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
 //!
 //! // create a new program state, with accounts starting Closed
 //! let mut program_state = ProgramState::new(
@@ -100,14 +101,14 @@
 //!     Commodity::from_str("1.52 AUD").unwrap()
 //! );
 //!
-//! let actions: Vec<Rc<dyn Action>> = vec![
-//!     Rc::from(open_account1),
-//!     Rc::from(open_account2),
-//!     Rc::from(transaction1),
-//!     Rc::from(balance_assertion1),
-//!     Rc::from(transaction2),
-//!     Rc::from(balance_assertion2),
-//!     Rc::from(balance_assertion3),
+//! let actions: Vec<Rc<ActionTypeValue>> = vec![
+//!     Rc::new(open_account1.into()),
+//!     Rc::new(open_account2.into()),
+//!     Rc::new(transaction1.into()),
+//!     Rc::new(balance_assertion1.into()),
+//!     Rc::new(transaction2.into()),
+//!     Rc::new(balance_assertion2.into()),
+//!     Rc::new(balance_assertion3.into()),
 //! ];
 //!
 //! // create a program from the actions
@@ -151,9 +152,10 @@ doctest!("../README.md");
 #[cfg(test)]
 mod tests {
     use super::{
-        sum_account_states, Account, AccountState, AccountStatus, Action, BalanceAssertion,
+        sum_account_states, Account, AccountState, AccountStatus, BalanceAssertion,
         EditAccountStatus, Program, ProgramState, Transaction, TransactionElement,
     };
+    use crate::ActionTypeValue;
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::rc::Rc;
@@ -165,8 +167,8 @@ mod tests {
             CommodityTypeID::from_str("AUD").unwrap(),
             None,
         ));
-        let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
-        let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
+        let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+        let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
 
         let accounts = vec![account1.clone(), account2.clone()];
 
@@ -220,12 +222,12 @@ mod tests {
             Commodity::from_str("-3.52 AUD").unwrap(),
         );
 
-        let actions: Vec<Rc<dyn Action>> = vec![
-            Rc::from(open_account1),
-            Rc::from(open_account2),
-            Rc::from(transaction1),
-            Rc::from(transaction2),
-            Rc::from(balance_assertion),
+        let actions: Vec<Rc<ActionTypeValue>> = vec![
+            Rc::new(open_account1.into()),
+            Rc::new(open_account2.into()),
+            Rc::new(transaction1.into()),
+            Rc::new(transaction2.into()),
+            Rc::new(balance_assertion.into()),
         ];
 
         let program = Program::new(actions);

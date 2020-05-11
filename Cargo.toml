@@ -1,6 +1,6 @@
 [package]
 name = "doublecount"
-version = "0.6.2"
+version = "0.7.0"
 description = "A double entry accounting system/library."
 keywords = ["financial", "currency", "accounting", "exchange", "rate"]
 categories = ["science", "mathematics"]
@@ -13,7 +13,6 @@ readme = "README.md"
 [badges]
 maintenance = { status = "actively-developed" }
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = []
 serde-support = ["commodity/serde-support", "rust_decimal/serde", "serde", "serde_derive"]
@@ -31,6 +30,7 @@ arrayvec = "0.5"
 [dev-dependencies]
 serde_json = { version = "1.0" } # for unit tests
 doc-comment = "0.3"
+insta = "0.16.0"
 
 [package.metadata.docs.rs]
 features = ["serde-support"]

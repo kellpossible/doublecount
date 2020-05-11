@@ -1,0 +1,10 @@
+---
+source: src/account.rs
+expression: account
+---
+{
+  "id": "ABCDEFGHIJKLMNOPQRST",
+  "name": "Test Account",
+  "commodity_type_id": "USD",
+  "category": "Expense"
+}

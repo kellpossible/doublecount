@@ -33,6 +33,7 @@ The following features can be enabled to provide extra functionality:
 use doublecount::{
     AccountStatus, EditAccountStatus, Account, Program, Action,
     ProgramState, Transaction, TransactionElement, BalanceAssertion,
+    ActionTypeValue,
 };
 use commodity::{CommodityType, Commodity};
 use chrono::NaiveDate;
@@ -43,8 +44,8 @@ use std::str::FromStr;
 let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
 
 // Create a couple of accounts
-let account1 = Rc::from(Account::new(Some("Account 1"), aud.id, None));
-let account2 = Rc::from(Account::new(Some("Account 2"), aud.id, None));
+let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
 
 // create a new program state, with accounts starting Closed
 let mut program_state = ProgramState::new(
@@ -117,14 +118,14 @@ let balance_assertion3 = BalanceAssertion::new(
     Commodity::from_str("1.52 AUD").unwrap()
 );
 
-let actions: Vec<Rc<dyn Action>> = vec![
-    Rc::from(open_account1),
-    Rc::from(open_account2),
-    Rc::from(transaction1),
-    Rc::from(balance_assertion1),
-    Rc::from(transaction2),
-    Rc::from(balance_assertion2),
-    Rc::from(balance_assertion3),
+let actions: Vec<Rc<ActionTypeValue>> = vec![
+    Rc::new(open_account1.into()),
+    Rc::new(open_account2.into()),
+    Rc::new(transaction1.into()),
+    Rc::new(balance_assertion1.into()),
+    Rc::new(transaction2.into()),
+    Rc::new(balance_assertion2.into()),
+    Rc::new(balance_assertion3.into()),
 ];
 
 // create a program from the actions

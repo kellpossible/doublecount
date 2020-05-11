@@ -1,0 +1,12 @@
+---
+source: src/actions.rs
+expression: action
+---
+{
+  "account_id": "TestAccount",
+  "date": "2020-05-10",
+  "expected_balance": {
+    "value": "1.0",
+    "type_id": "AUD"
+  }
+}

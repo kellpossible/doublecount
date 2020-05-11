@@ -1,0 +1,9 @@
+---
+source: src/actions.rs
+expression: action
+---
+{
+  "account_id": "TestAccount",
+  "newstatus": "Open",
+  "date": "2020-05-10"
+}
