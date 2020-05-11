@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.0
+
++ Complete `serde` serialization for `Program`, and the various `Action` implementations. [#2](https://github.com/kellpossible/doublecount/issues/2).
++ Refactor `Program` to use an enum `ActionTypeValue` instead of dynamic trait dispatch over `Action`. Programs using custom actions need to create their own implementation of `ActionTypeValueEnum` to provide store their actions given to `Program`.
+
 ## v0.6.2
 
 + Fix changelog fo `v0.6.1`
