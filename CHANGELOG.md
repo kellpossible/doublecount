@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.0
+
++ Refactor to properly support user defined `Action`s. This included making `Program` and a number of other types generic over `ActionTypeValueEnum` and `ActionTypeEnum` implementations. These changes shouldn't affect anyone using the provided set of `Actions`.
++ Introduced a new trait `ActionTypeFor` which has some functionality separated from `Action`. This is a breaking change for people implementing `Action` themselves.
+
 ## v0.7.1
 
 + Fix building for default features accidentally including some items only needed for `serde-support`.

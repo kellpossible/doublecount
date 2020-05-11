@@ -1,6 +1,6 @@
 [package]
 name = "doublecount"
-version = "0.7.1"
+version = "0.8.0"
 description = "A double entry accounting system/library."
 keywords = ["financial", "currency", "accounting", "exchange", "rate"]
 categories = ["science", "mathematics"]

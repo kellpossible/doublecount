@@ -130,14 +130,14 @@ impl AccountState {
     }
 }
 
+#[cfg(feature = "serde-support")]
 #[cfg(test)]
-mod tests {
+mod serde_tests {
     use super::Account;
-    use crate::AccountID;
+    use super::AccountID;
     use commodity::CommodityTypeID;
     use std::str::FromStr;
 
-    #[cfg(feature = "serde-support")]
     #[test]
     fn account_serde() {
         use serde_json;

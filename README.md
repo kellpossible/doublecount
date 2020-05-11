@@ -24,7 +24,6 @@ executed on multi-core computers.
 The following features can be enabled to provide extra functionality:
 
 + `serde-support`
-  + **Currently incomplete**
   + Enables support for serialization/de-serialization via `serde`
 
 ## Usage
