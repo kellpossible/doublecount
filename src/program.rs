@@ -5,7 +5,10 @@ use super::{
 use commodity::exchange_rate::ExchangeRate;
 use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
-use std::{marker::PhantomData, rc::Rc};
+use std::rc::Rc;
+
+#[cfg(feature = "serde-support")]
+use std::marker::PhantomData;
 
 use crate::{ActionTypeValue, ActionTypeValueEnum};
 #[cfg(feature = "serde-support")]
@@ -215,6 +218,7 @@ impl ProgramState {
     }
 }
 
+#[cfg(feature = "serde-support")]
 #[cfg(test)]
 mod tests {
     use super::Program;
@@ -225,7 +229,7 @@ mod tests {
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::{rc::Rc, str::FromStr};
-
+    
     #[test]
     fn program_serde() {
         let json = r#"

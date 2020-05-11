@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.1
+
++ Fix building for default features accidentally including some items only needed for `serde-support`.
+
 ## v0.7.0
 
 + Complete `serde` serialization for `Program`, and the various `Action` implementations. [#2](https://github.com/kellpossible/doublecount/issues/2).
