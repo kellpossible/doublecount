@@ -5,10 +5,8 @@
 //! The doublecount package has the following optional cargo features:
 //!
 //! + `serde-support`
-//!   + **Currently incomplete**
 //!   + Disabled by default
 //!   + Enables support for serialization/de-serialization via `serde`
-//!   + Enables support for json serialization/de-serialization via `serde_json`
 //!
 //! # Usage
 //!
