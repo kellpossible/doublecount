@@ -43,7 +43,7 @@ impl ActionType {
 
 /// A trait which represents an enum/sized data structure which is
 /// capable of storing every possible concrete implementation of
-/// [Action](Action) for your [Program](crate::Program). 
+/// [Action](Action) for your [Program](crate::Program).
 ///
 /// If you have some custom actions, you need to implement this trait
 /// yourself and use it to store your actions that you provide to
@@ -51,7 +51,6 @@ impl ActionType {
 pub trait ActionTypeValueEnum {
     fn as_action(&self) -> &dyn Action;
 }
-
 
 /// An enum to store every possible concrete implementation of
 /// [Action](Action) in a `Sized` element.

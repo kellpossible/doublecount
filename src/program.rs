@@ -9,7 +9,7 @@ use std::{marker::PhantomData, rc::Rc};
 
 use crate::{ActionTypeValue, ActionTypeValueEnum};
 #[cfg(feature = "serde-support")]
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
+use serde::{de, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
@@ -84,9 +84,9 @@ where
 }
 
 #[cfg(feature = "serde-support")]
-impl<A> Serialize for Program<A> 
+impl<A> Serialize for Program<A>
 where
-    A: Serialize
+    A: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
