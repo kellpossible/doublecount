@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::slice;
 
 #[cfg(feature = "serde-support")]
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 /// A representation of what type of [Action](Action) is being performed.
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Hash, Clone)]
@@ -41,6 +41,20 @@ impl ActionType {
     }
 }
 
+/// A trait which represents an enum/sized data structure which is
+/// capable of storing every possible concrete implementation of
+/// [Action](Action) for your [Program](crate::Program). 
+///
+/// If you have some custom actions, you need to implement this trait
+/// yourself and use it to store your actions that you provide to
+/// [Program](crate::Program).
+pub trait ActionTypeValueEnum {
+    fn as_action(&self) -> &dyn Action;
+}
+
+
+/// An enum to store every possible concrete implementation of
+/// [Action](Action) in a `Sized` element.
 #[cfg_attr(feature = "serde-support", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde-support", serde(tag = "type"))]
 #[derive(Debug, Clone, PartialEq)]
@@ -48,10 +62,6 @@ pub enum ActionTypeValue {
     EditAccountStatus(EditAccountStatus),
     BalanceAssertion(BalanceAssertion),
     Transaction(Transaction),
-}
-
-pub trait ActionTypeValueEnum {
-    fn as_action(&self) -> &dyn Action;
 }
 
 impl ActionTypeValueEnum for ActionTypeValue {
@@ -93,22 +103,6 @@ pub trait Action: fmt::Display + fmt::Debug {
     /// What type of action is being performed.
     fn action_type(&self) -> ActionType;
 }
-
-// TODO: perhaps I can make Action implement Serialize if serde is enabled? no because it uses generic trait parameter
-// have a look at how https://github.com/dtolnay/typetag works and see if this can work?
-// #[cfg(feature = "serde-support")]
-// impl Serialize for dyn Action {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer {
-
-//         match self.action_type_value() {
-//             ActionTypeValue::EditAccountStatus(action) => action.serialize(serializer),
-//             ActionTypeValue::BalanceAssertion(action) => action.serialize(serializer),
-//             ActionTypeValue::Transaction(action) => action.serialize(serializer),
-//         }
-//     }
-// }
 
 /// A way to sort [Action](Action)s by their date, and then by the
 /// priority of their [ActionType](ActionType).

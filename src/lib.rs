@@ -152,7 +152,7 @@ doctest!("../README.md");
 #[cfg(test)]
 mod tests {
     use super::{
-        sum_account_states, Account, AccountState, AccountStatus, Action, BalanceAssertion,
+        sum_account_states, Account, AccountState, AccountStatus, BalanceAssertion,
         EditAccountStatus, Program, ProgramState, Transaction, TransactionElement,
     };
     use crate::ActionTypeValue;

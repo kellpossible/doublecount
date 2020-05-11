@@ -1,15 +1,15 @@
 use super::{
-    Account, AccountID, AccountState, AccountStatus, AccountingError, Action, ActionOrder,
+    Account, AccountID, AccountState, AccountStatus, AccountingError, ActionOrder,
     FailedBalanceAssertion,
 };
 use commodity::exchange_rate::ExchangeRate;
 use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::{marker::PhantomData, rc::Rc};
 
 use crate::{ActionTypeValue, ActionTypeValueEnum};
 #[cfg(feature = "serde-support")]
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer, ser::SerializeSeq};
 
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
@@ -33,33 +33,36 @@ where
         }
     }
 
+    /// The number of actions in this program.
     pub fn len(&self) -> usize {
         self.actions.len()
     }
 }
 
-// TODO: make this generic over action type value enum
 #[cfg(feature = "serde-support")]
-struct ProgramVisitor;
+struct ProgramVisitor<A>(PhantomData<A>);
 
 #[cfg(feature = "serde-support")]
-impl<'de> de::Visitor<'de> for ProgramVisitor {
-    type Value = Program;
+impl<'de, A> de::Visitor<'de> for ProgramVisitor<A>
+where
+    A: Deserialize<'de> + ActionTypeValueEnum,
+{
+    type Value = Program<A>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(format!("Program comprising of a vector of Actions",).as_ref())
     }
 
-    fn visit_seq<S>(self, mut seq: S) -> Result<Program, S::Error>
+    fn visit_seq<S>(self, mut seq: S) -> Result<Program<A>, S::Error>
     where
         S: de::SeqAccess<'de>,
     {
-        let mut actions: Vec<Rc<ActionTypeValue>> = match seq.size_hint() {
+        let mut actions: Vec<Rc<A>> = match seq.size_hint() {
             Some(size_hint) => Vec::with_capacity(size_hint),
             None => Vec::new(),
         };
 
-        while let Some(action) = seq.next_element::<ActionTypeValue>()? {
+        while let Some(action) = seq.next_element::<A>()? {
             actions.push(Rc::new(action));
         }
 
@@ -68,12 +71,32 @@ impl<'de> de::Visitor<'de> for ProgramVisitor {
 }
 
 #[cfg(feature = "serde-support")]
-impl<'de> Deserialize<'de> for Program {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Program, D::Error>
+impl<'de, A> Deserialize<'de> for Program<A>
+where
+    A: Deserialize<'de> + ActionTypeValueEnum,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Program<A>, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_seq(ProgramVisitor)
+        deserializer.deserialize_seq(ProgramVisitor::<A>(PhantomData::default()))
+    }
+}
+
+#[cfg(feature = "serde-support")]
+impl<A> Serialize for Program<A> 
+where
+    A: Serialize
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.actions.len()))?;
+        for e in &self.actions {
+            seq.serialize_element(&**e)?;
+        }
+        seq.end()
     }
 }
 
@@ -196,8 +219,8 @@ impl ProgramState {
 mod tests {
     use super::Program;
     use crate::{
-        Account, AccountID, AccountStatus, Action, ActionTypeValue, BalanceAssertion,
-        EditAccountStatus, Transaction, TransactionElement,
+        Account, AccountID, AccountStatus, ActionTypeValue, BalanceAssertion, EditAccountStatus,
+        Transaction, TransactionElement,
     };
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType, CommodityTypeID};
@@ -315,5 +338,7 @@ mod tests {
         let reference_program = Program::new(actions);
 
         assert_eq!(reference_program, program);
+
+        insta::assert_json_snapshot!(program);
     }
 }

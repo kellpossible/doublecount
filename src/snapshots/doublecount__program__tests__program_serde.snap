@@ -1,0 +1,50 @@
+---
+source: src/program.rs
+expression: program
+---
+[
+  {
+    "type": "EditAccountStatus",
+    "account_id": "TestAccount1",
+    "newstatus": "Open",
+    "date": "2020-01-01"
+  },
+  {
+    "type": "EditAccountStatus",
+    "account_id": "TestAccount2",
+    "newstatus": "Open",
+    "date": "2020-01-01"
+  },
+  {
+    "type": "Transaction",
+    "description": "Test Transaction",
+    "date": "2020-01-02",
+    "elements": [
+      {
+        "account_id": "TestAccount1",
+        "amount": {
+          "value": "-2.52",
+          "type_id": "AUD"
+        },
+        "exchange_rate": null
+      },
+      {
+        "account_id": "TestAccount2",
+        "amount": {
+          "value": "2.52",
+          "type_id": "AUD"
+        },
+        "exchange_rate": null
+      }
+    ]
+  },
+  {
+    "type": "BalanceAssertion",
+    "account_id": "TestAccount1",
+    "date": "2020-01-03",
+    "expected_balance": {
+      "value": "-3.52",
+      "type_id": "AUD"
+    }
+  }
+]
