@@ -5,34 +5,35 @@ use super::{
 use commodity::exchange_rate::ExchangeRate;
 use commodity::{Commodity, CommodityTypeID};
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
-#[cfg(feature = "serde-support")]
-use std::marker::PhantomData;
-
-use crate::{ActionTypeValue, ActionTypeValueEnum};
+use crate::{ActionType, ActionTypeFor, ActionTypeValue, ActionTypeValueEnum};
 #[cfg(feature = "serde-support")]
 use serde::{de, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A collection of [Action](Action)s to be executed in order to
 /// mutate some [ProgramState](ProgramState).
 #[derive(Debug, Clone, PartialEq)]
-pub struct Program<A = ActionTypeValue> {
-    pub actions: Vec<Rc<A>>,
+pub struct Program<AT = ActionType, ATV = ActionTypeValue> {
+    pub actions: Vec<Rc<ATV>>,
+    action_type: PhantomData<AT>,
 }
 
-impl<A> Program<A>
+impl<AT, ATV> Program<AT, ATV>
 where
-    A: ActionTypeValueEnum,
+    AT: Ord,
+    ATV: ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
     /// Create a new [Program](Program).
     ///
     /// The provided `actions` will be sorted using [ActionOrder](ActionOrder).
-    pub fn new(actions: Vec<Rc<A>>) -> Program<A> {
-        let mut sorted_actions: Vec<Rc<A>> = actions;
-        sorted_actions.sort_by_key(|a| ActionOrder::<A>(a.clone()));
+    pub fn new(actions: Vec<Rc<ATV>>) -> Program<AT, ATV> {
+        let mut sorted_actions: Vec<Rc<ATV>> = actions;
+        sorted_actions.sort_by_key(|a| ActionOrder::new(a.clone()));
         Program {
             actions: sorted_actions,
+            action_type: PhantomData::default(),
         }
     }
 
@@ -43,29 +44,43 @@ where
 }
 
 #[cfg(feature = "serde-support")]
-struct ProgramVisitor<A>(PhantomData<A>);
+struct ProgramVisitor<AT, ATV> {
+    action_type: PhantomData<AT>,
+    action_type_value: PhantomData<ATV>,
+}
 
 #[cfg(feature = "serde-support")]
-impl<'de, A> de::Visitor<'de> for ProgramVisitor<A>
+impl<AT, ATV> ProgramVisitor<AT, ATV> {
+    pub fn new() -> Self {
+        Self {
+            action_type: PhantomData::default(),
+            action_type_value: PhantomData::default(),
+        }
+    }
+}
+
+#[cfg(feature = "serde-support")]
+impl<'de, AT, ATV> de::Visitor<'de> for ProgramVisitor<AT, ATV>
 where
-    A: Deserialize<'de> + ActionTypeValueEnum,
+    AT: Ord,
+    ATV: Deserialize<'de> + ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
-    type Value = Program<A>;
+    type Value = Program<AT, ATV>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(format!("Program comprising of a vector of Actions",).as_ref())
     }
 
-    fn visit_seq<S>(self, mut seq: S) -> Result<Program<A>, S::Error>
+    fn visit_seq<S>(self, mut seq: S) -> Result<Program<AT, ATV>, S::Error>
     where
         S: de::SeqAccess<'de>,
     {
-        let mut actions: Vec<Rc<A>> = match seq.size_hint() {
+        let mut actions: Vec<Rc<ATV>> = match seq.size_hint() {
             Some(size_hint) => Vec::with_capacity(size_hint),
             None => Vec::new(),
         };
 
-        while let Some(action) = seq.next_element::<A>()? {
+        while let Some(action) = seq.next_element::<ATV>()? {
             actions.push(Rc::new(action));
         }
 
@@ -74,22 +89,23 @@ where
 }
 
 #[cfg(feature = "serde-support")]
-impl<'de, A> Deserialize<'de> for Program<A>
+impl<'de, AT, ATV> Deserialize<'de> for Program<AT, ATV>
 where
-    A: Deserialize<'de> + ActionTypeValueEnum,
+    AT: Ord,
+    ATV: Deserialize<'de> + ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Program<A>, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Program<AT, ATV>, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_seq(ProgramVisitor::<A>(PhantomData::default()))
+        deserializer.deserialize_seq(ProgramVisitor::<AT, ATV>::new())
     }
 }
 
 #[cfg(feature = "serde-support")]
-impl<A> Serialize for Program<A>
+impl<AT, ATV> Serialize for Program<AT, ATV>
 where
-    A: Serialize,
+    ATV: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -104,7 +120,7 @@ where
 }
 
 /// The state of a [Program](Program) being executed.
-pub struct ProgramState {
+pub struct ProgramState<AT = ActionType, ATV = ActionTypeValue> {
     /// list of states associated with accounts (can only grow)
     pub account_states: HashMap<AccountID, AccountState>,
 
@@ -113,6 +129,9 @@ pub struct ProgramState {
 
     /// the index of the currently executing action
     current_action_index: usize,
+
+    action_type: PhantomData<AT>,
+    action_type_value: PhantomData<ATV>,
 }
 
 /// Sum the values in all the accounts into a single
@@ -148,9 +167,15 @@ pub fn sum_account_states(
     Ok(sum)
 }
 
-impl ProgramState {
+impl<AT, ATV> ProgramState<AT, ATV>
+where
+    ATV: ActionTypeValueEnum<AT>,
+{
     /// Create a new [ProgramState](ProgramState).
-    pub fn new(accounts: &Vec<Rc<Account>>, account_status: AccountStatus) -> ProgramState {
+    pub fn new(
+        accounts: &Vec<Rc<Account>>,
+        account_status: AccountStatus,
+    ) -> ProgramState<AT, ATV> {
         let mut account_states = HashMap::new();
 
         for account in accounts {
@@ -168,11 +193,13 @@ impl ProgramState {
             account_states,
             failed_balance_assertions: Vec::new(),
             current_action_index: 0,
+            action_type: PhantomData::default(),
+            action_type_value: PhantomData::default(),
         }
     }
 
     /// Execute a given [Program](Program) to mutate this state.
-    pub fn execute_program(&mut self, program: &Program) -> Result<(), AccountingError> {
+    pub fn execute_program(&mut self, program: &Program<AT, ATV>) -> Result<(), AccountingError> {
         for (index, action) in program.actions.iter().enumerate() {
             action.as_action().perform(self)?;
             self.current_action_index = index;
@@ -229,7 +256,7 @@ mod tests {
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType, CommodityTypeID};
     use std::{rc::Rc, str::FromStr};
-    
+
     #[test]
     fn program_serde() {
         let json = r#"

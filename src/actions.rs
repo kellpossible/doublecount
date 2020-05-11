@@ -5,7 +5,7 @@ use commodity::Commodity;
 use rust_decimal::{prelude::Zero, Decimal};
 use std::fmt;
 use std::rc::Rc;
-use std::slice;
+use std::{marker::PhantomData, slice};
 
 #[cfg(feature = "serde-support")]
 use serde::{Deserialize, Serialize};
@@ -29,6 +29,16 @@ pub enum ActionType {
     Transaction,
 }
 
+impl ActionTypeFor<ActionType> for ActionTypeValue {
+    fn action_type(&self) -> ActionType {
+        match self {
+            ActionTypeValue::EditAccountStatus(_) => ActionType::EditAccountStatus,
+            ActionTypeValue::BalanceAssertion(_) => ActionType::BalanceAssertion,
+            ActionTypeValue::Transaction(_) => ActionType::Transaction,
+        }
+    }
+}
+
 impl ActionType {
     /// Return an iterator over all available [ActionType](ActionType) variants.
     pub fn iterator() -> slice::Iter<'static, ActionType> {
@@ -48,8 +58,8 @@ impl ActionType {
 /// If you have some custom actions, you need to implement this trait
 /// yourself and use it to store your actions that you provide to
 /// [Program](crate::Program).
-pub trait ActionTypeValueEnum {
-    fn as_action(&self) -> &dyn Action;
+pub trait ActionTypeValueEnum<AT> {
+    fn as_action(&self) -> &dyn Action<AT, Self>;
 }
 
 /// An enum to store every possible concrete implementation of
@@ -63,8 +73,8 @@ pub enum ActionTypeValue {
     Transaction(Transaction),
 }
 
-impl ActionTypeValueEnum for ActionTypeValue {
-    fn as_action(&self) -> &dyn Action {
+impl<AT> ActionTypeValueEnum<AT> for ActionTypeValue {
+    fn as_action(&self) -> &dyn Action<AT, ActionTypeValue> {
         match self {
             ActionTypeValue::EditAccountStatus(action) => action,
             ActionTypeValue::BalanceAssertion(action) => action,
@@ -91,16 +101,19 @@ impl From<Transaction> for ActionTypeValue {
     }
 }
 
+/// Obtain the concrete action type for an action.
+pub trait ActionTypeFor<AT> {
+    /// What type of action is being performed.
+    fn action_type(&self) -> AT;
+}
+
 /// Represents an action which can modify [ProgramState](ProgramState).
-pub trait Action: fmt::Display + fmt::Debug {
+pub trait Action<AT, ATV>: fmt::Display + fmt::Debug {
     /// The date/time (in the account history) that the action was performed.
     fn date(&self) -> NaiveDate;
 
     /// Perform the action to mutate the [ProgramState](ProgramState).
-    fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError>;
-
-    /// What type of action is being performed.
-    fn action_type(&self) -> ActionType;
+    fn perform(&self, program_state: &mut ProgramState<AT, ATV>) -> Result<(), AccountingError>;
 }
 
 /// A way to sort [Action](Action)s by their date, and then by the
@@ -117,51 +130,76 @@ pub trait Action: fmt::Display + fmt::Debug {
 /// // some actions to the actions vector
 ///
 /// // sort the actions using this order
-/// actions.sort_by_key(|a| ActionOrder(a.clone()));
+/// actions.sort_by_key(|a| ActionOrder::new(a.clone()));
 /// ```
-pub struct ActionOrder<A>(pub Rc<A>);
+pub struct ActionOrder<AT, ATV> {
+    action_value: Rc<ATV>,
+    action_type: PhantomData<AT>,
+}
 
-impl<A> PartialEq for ActionOrder<A>
+impl<AT, ATV> ActionOrder<AT, ATV> {
+    pub fn new(action_value: Rc<ATV>) -> Self {
+        Self {
+            action_value,
+            action_type: PhantomData::default(),
+        }
+    }
+}
+
+impl<AT, ATV> PartialEq for ActionOrder<AT, ATV>
 where
-    A: ActionTypeValueEnum,
+    AT: PartialEq,
+    ATV: ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
-    fn eq(&self, other: &ActionOrder<A>) -> bool {
-        let self_action = self.0.as_action();
-        let other_action = other.0.as_action();
-        self_action.action_type() == other_action.action_type()
+    fn eq(&self, other: &ActionOrder<AT, ATV>) -> bool {
+        let self_action = self.action_value.as_action();
+        let other_action = other.action_value.as_action();
+        self.action_value.action_type() == other.action_value.action_type()
             && self_action.date() == other_action.date()
     }
 }
 
-impl<A> Eq for ActionOrder<A> where A: ActionTypeValueEnum {}
-
-impl<A> PartialOrd for ActionOrder<A>
+impl<AT, ATV> Eq for ActionOrder<AT, ATV>
 where
-    A: ActionTypeValueEnum,
+    ATV: ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
+    AT: PartialEq,
+{
+}
+
+impl<AT, ATV> PartialOrd for ActionOrder<AT, ATV>
+where
+    AT: Ord,
+    ATV: ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let self_action = self.0.as_action();
-        let other_action = other.0.as_action();
+        let self_action = self.action_value.as_action();
+        let other_action = other.action_value.as_action();
         self_action
             .date()
             .partial_cmp(&other_action.date())
             .map(|date_order| {
-                date_order.then(self_action.action_type().cmp(&other_action.action_type()))
+                date_order.then(
+                    self.action_value
+                        .action_type()
+                        .cmp(&other.action_value.action_type()),
+                )
             })
     }
 }
 
-impl<A> Ord for ActionOrder<A>
+impl<AT, ATV> Ord for ActionOrder<AT, ATV>
 where
-    A: ActionTypeValueEnum,
+    AT: Ord,
+    ATV: ActionTypeValueEnum<AT> + ActionTypeFor<AT>,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let self_action = self.0.as_action();
-        let other_action = other.0.as_action();
-        self_action
-            .date()
-            .cmp(&other_action.date())
-            .then(self_action.action_type().cmp(&other_action.action_type()))
+        let self_action = self.action_value.as_action();
+        let other_action = other.action_value.as_action();
+        self_action.date().cmp(&other_action.date()).then(
+            self.action_value
+                .action_type()
+                .cmp(&other.action_value.action_type()),
+        )
     }
 }
 
@@ -263,18 +301,27 @@ impl Transaction {
     }
 }
 
+impl ActionTypeFor<ActionType> for Transaction {
+    fn action_type(&self) -> ActionType {
+        todo!()
+    }
+}
+
 impl fmt::Display for Transaction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Transaction")
     }
 }
 
-impl Action for Transaction {
+impl<AT, ATV> Action<AT, ATV> for Transaction
+where
+    ATV: ActionTypeValueEnum<AT>,
+{
     fn date(&self) -> NaiveDate {
         self.date
     }
 
-    fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
+    fn perform(&self, program_state: &mut ProgramState<AT, ATV>) -> Result<(), AccountingError> {
         // check that the transaction has at least 2 elements
         if self.elements.len() < 2 {
             return Err(AccountingError::InvalidTransaction(
@@ -414,10 +461,6 @@ impl Action for Transaction {
 
         return Ok(());
     }
-
-    fn action_type(&self) -> ActionType {
-        ActionType::Transaction
-    }
 }
 
 /// An element of a [Transaction](Transaction).
@@ -487,19 +530,24 @@ impl fmt::Display for EditAccountStatus {
     }
 }
 
-impl Action for EditAccountStatus {
+impl<AT, ATV> Action<AT, ATV> for EditAccountStatus
+where
+    ATV: ActionTypeValueEnum<AT>,
+{
     fn date(&self) -> NaiveDate {
         self.date
     }
 
-    fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
+    fn perform(&self, program_state: &mut ProgramState<AT, ATV>) -> Result<(), AccountingError> {
         let mut account_state = program_state
             .get_account_state_mut(&self.account_id)
             .unwrap();
         account_state.status = self.newstatus;
         return Ok(());
     }
+}
 
+impl ActionTypeFor<ActionType> for EditAccountStatus {
     fn action_type(&self) -> ActionType {
         ActionType::EditAccountStatus
     }
@@ -570,12 +618,15 @@ impl fmt::Display for FailedBalanceAssertion {
 // When running this action's `perform()` method implementation, if
 // this assertion fails, a [FailedBalanceAssertion](FailedBalanceAssertion)
 // will be recorded in the [ProgramState](ProgramState).
-impl Action for BalanceAssertion {
+impl<AT, ATV> Action<AT, ATV> for BalanceAssertion
+where
+    ATV: ActionTypeValueEnum<AT>,
+{
     fn date(&self) -> NaiveDate {
         self.date
     }
 
-    fn perform(&self, program_state: &mut ProgramState) -> Result<(), AccountingError> {
+    fn perform(&self, program_state: &mut ProgramState<AT, ATV>) -> Result<(), AccountingError> {
         match program_state.get_account_state(&self.account_id) {
             Some(state) => {
                 if state
@@ -592,7 +643,9 @@ impl Action for BalanceAssertion {
 
         return Ok(());
     }
+}
 
+impl ActionTypeFor<ActionType> for BalanceAssertion {
     fn action_type(&self) -> ActionType {
         ActionType::BalanceAssertion
     }
@@ -600,11 +653,8 @@ impl Action for BalanceAssertion {
 
 #[cfg(test)]
 mod tests {
-    use super::{ActionType, BalanceAssertion, EditAccountStatus, Transaction};
-    use crate::{AccountID, AccountStatus};
-    use chrono::NaiveDate;
-    use commodity::Commodity;
-    use std::{collections::HashSet, str::FromStr};
+    use super::ActionType;
+    use std::collections::HashSet;
 
     #[test]
     fn action_type_order() {
@@ -640,8 +690,17 @@ mod tests {
 
         assert_eq!(action_types_ordered, action_types_unordered);
     }
+}
 
-    #[cfg(feature = "serde-support")]
+#[cfg(feature = "serde-support")]
+#[cfg(test)]
+mod serde_tests {
+    use super::{BalanceAssertion, EditAccountStatus, Transaction};
+    use crate::{AccountID, AccountStatus};
+    use chrono::NaiveDate;
+    use commodity::Commodity;
+    use std::str::FromStr;
+
     #[test]
     fn edit_account_status_serde() {
         use serde_json;
@@ -664,7 +723,6 @@ mod tests {
         insta::assert_json_snapshot!(action);
     }
 
-    #[cfg(feature = "serde-support")]
     #[test]
     fn balance_assertion_serde() {
         use serde_json;
