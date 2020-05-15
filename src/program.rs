@@ -73,7 +73,7 @@ where
     type Value = Program<AT, ATV>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str(format!("Program comprising of a vector of Actions",).as_ref())
+        formatter.write_str("Program comprising of a vector of Actions")
     }
 
     fn visit_seq<S>(self, mut seq: S) -> Result<Program<AT, ATV>, S::Error>
