@@ -654,8 +654,8 @@ impl ActionTypeFor<ActionType> for BalanceAssertion {
 mod tests {
     use super::ActionType;
     use crate::{
-        Account, AccountStatus, AccountingError, ActionTypeValue,
-        BalanceAssertion, Program, ProgramState, Transaction,
+        Account, AccountStatus, AccountingError, ActionTypeValue, BalanceAssertion, Program,
+        ProgramState, Transaction,
     };
     use chrono::NaiveDate;
     use commodity::{Commodity, CommodityType};
