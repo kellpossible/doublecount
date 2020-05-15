@@ -41,6 +41,11 @@ where
     pub fn len(&self) -> usize {
         self.actions.len()
     }
+
+    /// Returns true if there are no actions in this progam.
+    pub fn is_empty(&self) -> bool {
+        self.actions.is_empty()
+    }
 }
 
 #[cfg(feature = "serde-support")]
@@ -146,7 +151,7 @@ pub fn sum_account_states(
 ) -> Result<Commodity, AccountingError> {
     let mut sum = Commodity::zero(sum_commodity_type_id);
 
-    for (_, account_state) in account_states {
+    for account_state in account_states.values() {
         let account_amount = if account_state.amount.type_id != sum_commodity_type_id {
             match exchange_rate {
                 Some(rate) => rate.convert(account_state.amount, sum_commodity_type_id)?,
@@ -172,10 +177,7 @@ where
     ATV: ActionTypeValueEnum<AT>,
 {
     /// Create a new [ProgramState](ProgramState).
-    pub fn new(
-        accounts: &Vec<Rc<Account>>,
-        account_status: AccountStatus,
-    ) -> ProgramState<AT, ATV> {
+    pub fn new(accounts: &[Rc<Account>], account_status: AccountStatus) -> ProgramState<AT, ATV> {
         let mut account_states = HashMap::new();
 
         for account in accounts {
@@ -206,14 +208,11 @@ where
         }
 
         // TODO: change this to return a list of failed assertions in the error
-        match self.failed_balance_assertions.get(0) {
-            Some(failed_assertion) => {
-                return Err(AccountingError::BalanceAssertionFailed(
-                    failed_assertion.clone(),
-                ));
-            }
-            None => {}
-        };
+        if let Some(failed_assertion) = self.failed_balance_assertions.get(0) {
+            return Err(AccountingError::BalanceAssertionFailed(
+                failed_assertion.clone(),
+            ));
+        }
 
         Ok(())
     }

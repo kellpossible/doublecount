@@ -54,13 +54,12 @@ impl Account {
     ) -> Account {
         let id_string: String = nanoid!(ACCOUNT_ID_LENGTH);
         Self::new(
-            ArrayString::from(id_string.as_ref()).expect(
-                format!(
+            ArrayString::from(id_string.as_ref()).unwrap_or_else(|_| {
+                panic!(
                     "generated id string {0} should fit within ACCOUNT_ID_LENGTH: {1}",
                     id_string, ACCOUNT_ID_LENGTH
                 )
-                .as_ref(),
-            ),
+            }),
             name,
             commodity_type_id,
             category,
@@ -79,7 +78,7 @@ impl Account {
             id,
             name: name.map(|s| s.into()),
             commodity_type_id,
-            category: category.map(|c| c.into()),
+            category,
         }
     }
 }

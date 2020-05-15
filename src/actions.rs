@@ -381,35 +381,29 @@ where
 
         // Calculate the sum of elements (not including the empty element if there is one)
         for (i, element) in self.elements.iter().enumerate() {
-            match empty_amount_element {
-                Some(empty_i) => {
-                    if i != empty_i {
-                        //TODO: perform commodity type conversion here if required
-                        sum = match sum.add(&element.amount.as_ref().unwrap()) {
-                            Ok(value) => value,
-                            Err(error) => return Err(AccountingError::Commodity(error)),
-                        }
+            if let Some(empty_i) = empty_amount_element {
+                if i != empty_i {
+                    //TODO: perform commodity type conversion here if required
+                    sum = match sum.add(&element.amount.as_ref().unwrap()) {
+                        Ok(value) => value,
+                        Err(error) => return Err(AccountingError::Commodity(error)),
                     }
                 }
-                None => {}
             }
         }
 
         // Calculate the value to use for the empty element (negate the sum of the other elements)
-        match empty_amount_element {
-            Some(empty_i) => {
-                let modified_emtpy_element: &mut TransactionElement =
-                    modified_elements.get_mut(empty_i).unwrap();
-                let negated_sum = sum.neg();
-                modified_emtpy_element.amount = Some(negated_sum.clone());
+        if let Some(empty_i) = empty_amount_element {
+            let modified_emtpy_element: &mut TransactionElement =
+                modified_elements.get_mut(empty_i).unwrap();
+            let negated_sum = sum.neg();
+            modified_emtpy_element.amount = Some(negated_sum);
 
-                sum = match sum.add(&negated_sum) {
-                    Ok(value) => value,
-                    Err(error) => return Err(AccountingError::Commodity(error)),
-                }
+            sum = match sum.add(&negated_sum) {
+                Ok(value) => value,
+                Err(error) => return Err(AccountingError::Commodity(error)),
             }
-            None => {}
-        };
+        }
 
         if sum.value != Decimal::zero() {
             return Err(AccountingError::InvalidTransaction(
@@ -421,12 +415,11 @@ where
         for transaction in &modified_elements {
             let mut account_state = program_state
                 .get_account_state_mut(&transaction.account_id)
-                .expect(
-                    format!(
+                .unwrap_or_else(||
+                    panic!(
                         "unable to find state for account with id: {} please ensure this account was added to the program state before execution.",
                         transaction.account_id
                     )
-                    .as_ref(),
                 );
 
             match account_state.status {
@@ -459,7 +452,7 @@ where
             }
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -543,7 +536,7 @@ where
             .get_account_state_mut(&self.account_id)
             .unwrap();
         account_state.status = self.newstatus;
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -627,21 +620,27 @@ where
     }
 
     fn perform(&self, program_state: &mut ProgramState<AT, ATV>) -> Result<(), AccountingError> {
-        match program_state.get_account_state(&self.account_id) {
+        let failed_assertion = match program_state.get_account_state(&self.account_id) {
             Some(state) => {
-                if state
+                if !state
                     .amount
                     .eq_approx(self.expected_balance, Commodity::default_epsilon())
                 {
+                    Some(FailedBalanceAssertion::new(self.clone(), state.amount))
                 } else {
+                    None
                 }
             }
             None => {
                 return Err(AccountingError::MissingAccountState(self.account_id));
             }
+        };
+
+        if let Some(failed_assertion) = failed_assertion {
+            program_state.record_failed_balance_assertion(failed_assertion)
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -654,7 +653,14 @@ impl ActionTypeFor<ActionType> for BalanceAssertion {
 #[cfg(test)]
 mod tests {
     use super::ActionType;
-    use std::collections::HashSet;
+    use crate::{
+        Account, AccountStatus, AccountingError, ActionTypeValue, ActionTypeValueEnum,
+        BalanceAssertion, Program, ProgramState, Transaction,
+    };
+    use chrono::NaiveDate;
+    use commodity::{Commodity, CommodityType};
+    use rust_decimal::Decimal;
+    use std::{collections::HashSet, rc::Rc};
 
     #[test]
     fn action_type_order() {
@@ -689,6 +695,66 @@ mod tests {
         ];
 
         assert_eq!(action_types_ordered, action_types_unordered);
+    }
+
+    #[test]
+    fn balance_assertion() {
+        let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
+        let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
+        let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
+
+        let date_1 = NaiveDate::from_ymd(2020, 01, 01);
+        let date_2 = NaiveDate::from_ymd(2020, 01, 02);
+        let actions: Vec<Rc<ActionTypeValue>> = vec![
+            Rc::new(
+                Transaction::new_simple::<String>(
+                    None,
+                    date_1.clone(),
+                    account1.id,
+                    account2.id,
+                    Commodity::new(Decimal::new(100, 2), &*aud),
+                    None,
+                )
+                .into(),
+            ),
+            // This assertion is expected to fail because it occurs at the start
+            // of the day (before the transaction).
+            Rc::new(
+                BalanceAssertion::new(
+                    account2.id,
+                    date_1.clone(),
+                    Commodity::new(Decimal::new(100, 2), &*aud),
+                )
+                .into(),
+            ),
+            // This assertion is expected to pass because it occurs at the end
+            // of the day (after the transaction).
+            Rc::new(
+                BalanceAssertion::new(
+                    account2.id,
+                    date_2.clone(),
+                    Commodity::new(Decimal::new(100, 2), &*aud),
+                )
+                .into(),
+            ),
+        ];
+
+        let program = Program::new(actions);
+
+        let accounts = vec![account1, account2];
+        let mut program_state = ProgramState::new(&accounts, AccountStatus::Open);
+        match program_state.execute_program(&program) {
+            Err(AccountingError::BalanceAssertionFailed(failure)) => {
+                assert_eq!(
+                    Commodity::new(Decimal::new(0, 2), &*aud),
+                    failure.actual_balance
+                );
+                assert_eq!(date_1, failure.assertion.date);
+            }
+            _ => panic!("Expected an AccountingError:BalanceAssertionFailed"),
+        }
+
+        assert_eq!(1, program_state.failed_balance_assertions.len());
     }
 }
 
