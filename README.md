@@ -1,4 +1,4 @@
-# Doublecount [![crates.io badge](https://img.shields.io/crates/v/doublecount.svg)](https://crates.io/crates/doublecount) [![license badge](https://img.shields.io/github/license/kellpossible/doublecount)](https://github.com/kellpossible/doublecount/blob/master/LICENSE.txt) [![docs.rs badge](https://docs.rs/doublecount/badge.svg)](https://docs.rs/doublecount/)
+# Doublecount [![crates.io badge](https://img.shields.io/crates/v/doublecount.svg)](https://crates.io/crates/doublecount) [![license badge](https://img.shields.io/github/license/kellpossible/doublecount)](https://github.com/kellpossible/doublecount/blob/master/LICENSE.txt) [![docs.rs badge](https://docs.rs/doublecount/badge.svg)](https://docs.rs/doublecount/) [![github action badge](https://github.com/kellpossible/doublecount/workflows/Rust/badge.svg)](https://github.com/kellpossible/doublecount/actions?query=workflow%3ARust)
 
 A double entry accounting system/library for Rust.
 
