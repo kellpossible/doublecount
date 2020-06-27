@@ -40,7 +40,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 // create a commodity from a currency's iso4317 alphanumeric code
-let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
+let aud = Rc::from(CommodityType::from_str("AUD", "Australian Dollar").unwrap());
 
 // Create a couple of accounts
 let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));

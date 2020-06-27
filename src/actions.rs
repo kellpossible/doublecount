@@ -254,7 +254,7 @@ impl Transaction {
     /// use chrono::Local;
     /// use std::str::FromStr;
     ///
-    /// let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
+    /// let aud = Rc::from(CommodityType::from_str("AUD", "Australian Dollar").unwrap());
     ///
     /// let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
     /// let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
@@ -699,7 +699,7 @@ mod tests {
 
     #[test]
     fn balance_assertion() {
-        let aud = Rc::from(CommodityType::from_currency_alpha3("AUD").unwrap());
+        let aud = Rc::from(CommodityType::from_str("AUD", "Australian Dollar").unwrap());
         let account1 = Rc::from(Account::new_with_id(Some("Account 1"), aud.id, None));
         let account2 = Rc::from(Account::new_with_id(Some("Account 2"), aud.id, None));
 

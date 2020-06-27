@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.2
+
++ Update `commodity` to version `0.4`.
+
 ## v0.8.1
 
 + Fix incomplete `Action` implementation for `BalanceAssertion`.
